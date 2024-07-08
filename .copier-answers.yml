@@ -1,0 +1,12 @@
+# Do not edit - changes here will be overwritten by Copier
+_commit: v1
+_src_path: gh:pydev-guide/pyrepo-copier
+author_email: st.flurin@gmail.com
+author_name: Flurin Sturzenegger
+github_username: ZMB-UZH
+mode: tooling
+module_name: zmb_md_converter
+project_name: zmb-md-converter
+project_short_description: A library and small GUI to convert data from the MD-ImageXpress
+    microscope to different file formats.
+
