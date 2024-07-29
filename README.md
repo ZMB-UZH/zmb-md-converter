@@ -1,9 +1,75 @@
-# zmb-md-converter
+# MD ImageXpress example data
 
-[![License](https://img.shields.io/pypi/l/zmb-md-converter.svg?color=green)](https://github.com/ZMB-UZH/zmb-md-converter/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/zmb-md-converter.svg?color=green)](https://pypi.org/project/zmb-md-converter)
-[![Python Version](https://img.shields.io/pypi/pyversions/zmb-md-converter.svg?color=green)](https://python.org)
-[![CI](https://github.com/ZMB-UZH/zmb-md-converter/actions/workflows/ci.yml/badge.svg)](https://github.com/ZMB-UZH/zmb-md-converter/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/ZMB-UZH/zmb-md-converter/branch/main/graph/badge.svg)](https://codecov.io/gh/ZMB-UZH/zmb-md-converter)
+Example data of the MD ImageXpress used at the ZMB.
+The different .zip files correspond to the same data, exported in different ways.
 
-A library and small GUI to convert data from the MD-ImageXpress microscope to different file formats.
+## Data common to all zip-files:
+- The folder *3420* contains data with:
+  - 1 timepoint
+  - 1 z-step
+  - 1 well
+  - 1 site
+  - 1 channel
+  
+- The folder *3433* contains data with:
+  - 1 timepoint
+  - 3 z-steps
+  - 2 wells
+  - 2 sites
+  - 2 channels
+
+- The folder *3434* contains data with:
+  - 1 timepoint
+  - 3 z-steps
+  - 2 wells
+  - 2 sites
+  - 4 channels:
+    - w1: all z-planes
+    - w2: only projection
+    - w3: only 1 plane (0um offset)
+    - w4: only 1 plane (10um offset)
+
+- The folder *3435* contains data with:
+  - 6 timepoints
+  - 1 z-steps
+  - 2 wells
+  - 2 sites
+  - 4 channels:
+    - w1: all timepoints
+    - w2: at first timepoint
+    - w3: at first and last timepoint
+    - w4: at every 3rd timepoint
+
+- The folder *timeseries* contains three plates (*3433-3435*), corresponding to three timepoints with 1min intervals, each containing:
+  - 1 timepoint
+  - 3 z-steps
+  - 2 wells
+  - 2 sites
+  - 2 channels
+
+## Different export methods:
+
+- *direct_transfer.zip*:  
+  Data is directly transferred from the database, without using the MetaXpress software.
+  Contains z-planes and z-projections.
+
+- *INCarta_all-z.zip*:  
+  Data is exported via the MetaXpress software to the INCarta file format.  
+  Contains all z-planes.
+
+- *INCarta_only-projection.zip*:  
+  Data is exported via the MetaXpress software to the INCarta file format.  
+  Contains only z-projections.
+
+- *MetaXpress_all-z_include-projection.zip*:  
+  Data is exported via the MetaXpress software to the MetaXpress file format.  
+  Contains all z-planes and z-projections.
+
+- *MetaXpress_all-z_no-projection.zip*:  
+  Data is exported via the MetaXpress software to the MetaXpress file format.  
+  Contains all z-planes.
+
+- *MetaXpress_only-projection.zip*:  
+  Data is exported via the MetaXpress software to the MetaXpress file format.  
+  Contains only z-projections.
+

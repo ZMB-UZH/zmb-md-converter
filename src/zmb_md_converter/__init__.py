@@ -1,4 +1,4 @@
-"""A library and small GUI to convert data from the MD-ImageXpress microscope to different file formats."""
+"""A library and small GUI to convert data from the MD-ImageXpress microscope."""
 
 from importlib.metadata import PackageNotFoundError, version
 

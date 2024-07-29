@@ -35,18 +35,24 @@ classifiers = [
     "Typing :: Typed",
 ]
 # add your package dependencies here
-dependencies = []
+dependencies = [
+    "numpy",
+    "pandas",
+]
 
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 # "extras" (e.g. for `pip install .[test]`)
 [project.optional-dependencies]
 # add dependencies used for testing here
-test = ["pytest", "pytest-cov"]
+test = [
+    "pytest",
+    "pytest-cov",
+    "zenodo-get",
+    ]
 # add anything else you like to have in your dev environment here
 dev = [
-    "ipython",
     "mypy",
-    "pdbpp",  # https://github.com/pdbpp/pdbpp
+    #"pdbpp",  # https://github.com/pdbpp/pdbpp
     "pre-commit",
     "rich",  # https://github.com/Textualize/rich
     "ruff",
@@ -70,6 +76,7 @@ repository = "https://github.com/ZMB-UZH/zmb-md-converter"
 line-length = 88
 target-version = "py38"
 src = ["src"]
+exclude = ["legacy/*"]
 
 # https://docs.astral.sh/ruff/rules
 [tool.ruff.lint]
@@ -91,6 +98,7 @@ select = [
 ]
 ignore = [
     "D401", # First line should be in imperative mood (remove to opt in)
+    "D100", # Missing docstring in public module (remove to opt in)
 ]
 
 [tool.ruff.lint.per-file-ignores]
