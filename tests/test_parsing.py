@@ -1,6 +1,4 @@
 import os
-import subprocess
-import zipfile
 
 import numpy.testing as npt
 import pytest
@@ -10,44 +8,6 @@ from zmb_md_converter.parsing import (
     _parse_file,
     _parse_MD_plate_folder,
 )
-
-
-@pytest.fixture(scope="session")
-def temp_dir(tmp_path_factory):
-    # Create a temporary directory that lasts for the session
-    base_temp = tmp_path_factory.mktemp("data")
-
-    # Download files from Zenodo into the temporary directory
-    subprocess.run(
-        [
-            "zenodo_get",
-            "10.5281/zenodo.12724927",
-            "-o",
-            str(base_temp),
-            "-g",
-            "direct_transfer.zip",
-        ],
-        check=True,
-    )
-    subprocess.run(
-        [
-            "zenodo_get",
-            "10.5281/zenodo.12724927",
-            "-o",
-            str(base_temp),
-            "-g",
-            "MetaXpress_all-z_include-projection.zip",
-        ],
-        check=True,
-    )
-
-    # Unzip the downloaded files
-    for zip_file in ["direct_transfer.zip", "MetaXpress_all-z_include-projection.zip"]:
-        zip_path = base_temp / zip_file
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(base_temp)
-
-    return base_temp
 
 
 @pytest.mark.parametrize(
@@ -111,282 +71,77 @@ def test_parse_MD_plate_folder_directTransfer(temp_dir):
     df = _parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 1
-    npt.assert_array_equal(
-        df["time_point"].unique(),
-        [
-            "1",
-        ],
-    )
-    npt.assert_array_equal(
-        df["z"].unique(),
-        [
-            None,
-        ],
-    )
-    npt.assert_array_equal(
-        df["name"].unique(),
-        [
-            "9987",
-        ],
-    )
-    npt.assert_array_equal(
-        df["well"].unique(),
-        [
-            "B02",
-        ],
-    )
-    npt.assert_array_equal(
-        df["field"].unique(),
-        [
-            "s1",
-        ],
-    )
-    npt.assert_array_equal(
-        df["channel"].unique(),
-        [
-            None,
-        ],
-    )
-    npt.assert_array_equal(
-        df["dir_name"].unique(),
-        [
-            "3420",
-        ],
-    )
+    npt.assert_array_equal(df["time_point"].unique(), ["1"])
+    npt.assert_array_equal(df["z"].unique(), [None])
+    npt.assert_array_equal(df["name"].unique(), ["9987"])
+    npt.assert_array_equal(df["well"].unique(), ["B02"])
+    npt.assert_array_equal(df["field"].unique(), ["s1"])
+    npt.assert_array_equal(df["channel"].unique(), ["w0"])
+    npt.assert_array_equal(df["dir_name"].unique(), ["3420"])
 
     # 1t-3z-2w-2s-2c
     root_dir = temp_dir / "direct_transfer" / "3433"
     df = _parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 32
-    npt.assert_array_equal(
-        df["time_point"].unique(),
-        [
-            "1",
-        ],
-    )
-    npt.assert_array_equal(
-        df["z"].unique(),
-        [
-            None,
-            "1",
-            "2",
-            "3",
-        ],
-    )
-    npt.assert_array_equal(
-        df["name"].unique(),
-        [
-            "9987",
-        ],
-    )
-    npt.assert_array_equal(
-        df["well"].unique(),
-        [
-            "B02",
-            "B03",
-        ],
-    )
-    npt.assert_array_equal(
-        df["field"].unique(),
-        [
-            "s1",
-            "s2",
-        ],
-    )
-    npt.assert_array_equal(
-        df["channel"].unique(),
-        [
-            "w1",
-            "w2",
-        ],
-    )
-    npt.assert_array_equal(
-        df["dir_name"].unique(),
-        [
-            "3433",
-        ],
-    )
+    npt.assert_array_equal(df["time_point"].unique(), ["1"])
+    npt.assert_array_equal(df["z"].unique(), [None, "1", "2", "3"])
+    npt.assert_array_equal(df["name"].unique(), ["9987"])
+    npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
+    npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
+    npt.assert_array_equal(df["channel"].unique(), ["w1", "w2"])
+    npt.assert_array_equal(df["dir_name"].unique(), ["3433"])
 
     # 1t-3z-2w-2s-4c mixed z-sampliing
     root_dir = temp_dir / "direct_transfer" / "3434"
     df = _parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 28
-    npt.assert_array_equal(
-        df["time_point"].unique(),
-        [
-            "1",
-        ],
-    )
-    npt.assert_array_equal(
-        df["z"].unique(),
-        [
-            None,
-            "1",
-            "2",
-            "3",
-        ],
-    )
-    npt.assert_array_equal(
-        df["name"].unique(),
-        [
-            "9987",
-        ],
-    )
-    npt.assert_array_equal(
-        df["well"].unique(),
-        [
-            "B02",
-            "B03",
-        ],
-    )
-    npt.assert_array_equal(
-        df["field"].unique(),
-        [
-            "s1",
-            "s2",
-        ],
-    )
-    npt.assert_array_equal(
-        df["channel"].unique(),
-        [
-            "w1",
-            "w2",
-            "w3",
-            "w4",
-        ],
-    )
-    npt.assert_array_equal(
-        df["dir_name"].unique(),
-        [
-            "3434",
-        ],
-    )
+    npt.assert_array_equal(df["time_point"].unique(), ["1"])
+    npt.assert_array_equal(df["z"].unique(), [None, "1", "2", "3"])
+    npt.assert_array_equal(df["name"].unique(), ["9987"])
+    npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
+    npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
+    npt.assert_array_equal(df["channel"].unique(), ["w1", "w2", "w3", "w4"])
+    npt.assert_array_equal(df["dir_name"].unique(), ["3434"])
     # all z-planes:
     npt.assert_array_equal(
-        df.query("channel=='w1'")["z"].unique(),
-        [
-            None,
-            "1",
-            "2",
-            "3",
-        ],
+        df.query("channel=='w1'")["z"].unique(), [None, "1", "2", "3"]
     )
     # only projection:
-    npt.assert_array_equal(
-        df.query("channel=='w2'")["z"].unique(),
-        [
-            None,
-        ],
-    )
+    npt.assert_array_equal(df.query("channel=='w2'")["z"].unique(), [None])
     # only 1 plane (0um offset):
-    npt.assert_array_equal(
-        df.query("channel=='w3'")["z"].unique(),
-        [
-            "1",
-        ],
-    )
+    npt.assert_array_equal(df.query("channel=='w3'")["z"].unique(), ["1"])
     # only 1 plane (10um offset):
-    npt.assert_array_equal(
-        df.query("channel=='w4'")["z"].unique(),
-        [
-            "1",
-        ],
-    )
+    npt.assert_array_equal(df.query("channel=='w4'")["z"].unique(), ["1"])
 
     # 6t-1z-2w-2s-4c mixed time-sampling
     root_dir = temp_dir / "direct_transfer" / "3435"
     df = _parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 44
-    npt.assert_array_equal(
-        df["time_point"].unique(),
-        [
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-        ],
-    )
-    npt.assert_array_equal(
-        df["z"].unique(),
-        [
-            None,
-        ],
-    )
-    npt.assert_array_equal(
-        df["name"].unique(),
-        [
-            "9987",
-        ],
-    )
-    npt.assert_array_equal(
-        df["well"].unique(),
-        [
-            "B02",
-            "B03",
-        ],
-    )
-    npt.assert_array_equal(
-        df["field"].unique(),
-        [
-            "s1",
-            "s2",
-        ],
-    )
-    npt.assert_array_equal(
-        df["channel"].unique(),
-        [
-            "w1",
-            "w2",
-            "w3",
-            "w4",
-        ],
-    )
-    npt.assert_array_equal(
-        df["dir_name"].unique(),
-        [
-            "3435",
-        ],
-    )
+    npt.assert_array_equal(df["time_point"].unique(), ["1", "2", "3", "4", "5", "6"])
+    npt.assert_array_equal(df["z"].unique(), [None])
+    npt.assert_array_equal(df["name"].unique(), ["9987"])
+    npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
+    npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
+    npt.assert_array_equal(df["channel"].unique(), ["w1", "w2", "w3", "w4"])
+    npt.assert_array_equal(df["dir_name"].unique(), ["3435"])
     # all timepoints:
     npt.assert_array_equal(
-        df.query("channel=='w1'")["time_point"].unique(),
-        [
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-        ],
+        df.query("channel=='w1'")["time_point"].unique(), ["1", "2", "3", "4", "5", "6"]
     )
     # at first timepoint:
-    npt.assert_array_equal(
-        df.query("channel=='w2'")["time_point"].unique(),
-        [
-            "1",
-        ],
-    )
+    npt.assert_array_equal(df.query("channel=='w2'")["time_point"].unique(), ["1"])
     # at first and last timepoint:
-    npt.assert_array_equal(
-        df.query("channel=='w3'")["time_point"].unique(),
-        [
-            "1",
-            "6",
-        ],
-    )
+    npt.assert_array_equal(df.query("channel=='w3'")["time_point"].unique(), ["1", "6"])
     # at every 3rd timepoint:
-    npt.assert_array_equal(
-        df.query("channel=='w4'")["time_point"].unique(),
-        [
-            "1",
-            "4",
-        ],
-    )
+    npt.assert_array_equal(df.query("channel=='w4'")["time_point"].unique(), ["1", "4"])
+
+    # test wrong folder
+    root_dir = temp_dir / "direct_transfer"
+    df = _parse_MD_plate_folder(root_dir)
+    assert df is None
 
 
 def test_parse_MD_plate_folder_MetaXpress(temp_dir):
@@ -395,197 +150,54 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
     df = _parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 1
-    npt.assert_array_equal(
-        df["time_point"].unique(),
-        [
-            "1",
-        ],
-    )
-    npt.assert_array_equal(
-        df["z"].unique(),
-        [
-            None,
-        ],
-    )
-    npt.assert_array_equal(
-        df["name"].unique(),
-        [
-            "9987",
-        ],
-    )
-    npt.assert_array_equal(
-        df["well"].unique(),
-        [
-            "B02",
-        ],
-    )
-    npt.assert_array_equal(
-        df["field"].unique(),
-        [
-            None,
-        ],
-    )
-    npt.assert_array_equal(
-        df["channel"].unique(),
-        [
-            None,
-        ],
-    )
-    npt.assert_array_equal(
-        df["dir_name"].unique(),
-        [
-            "9987_Plate_3420",
-        ],
-    )
+    npt.assert_array_equal(df["time_point"].unique(), ["1"])
+    npt.assert_array_equal(df["z"].unique(), [None])
+    npt.assert_array_equal(df["name"].unique(), ["9987"])
+    npt.assert_array_equal(df["well"].unique(), ["B02"])
+    npt.assert_array_equal(df["field"].unique(), [None])
+    npt.assert_array_equal(df["channel"].unique(), ["w0"])
+    npt.assert_array_equal(df["dir_name"].unique(), ["9987_Plate_3420"])
 
     # 1t-3z-2w-2s-2c
     root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3433"
     df = _parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 32
-    npt.assert_array_equal(
-        df["time_point"].unique(),
-        [
-            "1",
-        ],
-    )
-    npt.assert_array_equal(
-        df["z"].unique(),
-        [
-            None,
-            "1",
-            "2",
-            "3",
-        ],
-    )
-    npt.assert_array_equal(
-        df["name"].unique(),
-        [
-            "9987",
-        ],
-    )
-    npt.assert_array_equal(
-        df["well"].unique(),
-        [
-            "B02",
-            "B03",
-        ],
-    )
-    npt.assert_array_equal(
-        df["field"].unique(),
-        [
-            "s1",
-            "s2",
-        ],
-    )
-    npt.assert_array_equal(
-        df["channel"].unique(),
-        [
-            "w1",
-            "w2",
-        ],
-    )
-    npt.assert_array_equal(
-        df["dir_name"].unique(),
-        [
-            "9987_Plate_3433",
-        ],
-    )
+    npt.assert_array_equal(df["time_point"].unique(), ["1"])
+    npt.assert_array_equal(df["z"].unique(), [None, "1", "2", "3"])
+    npt.assert_array_equal(df["name"].unique(), ["9987"])
+    npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
+    npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
+    npt.assert_array_equal(df["channel"].unique(), ["w1", "w2"])
+    npt.assert_array_equal(df["dir_name"].unique(), ["9987_Plate_3433"])
 
     # 1t-3z-2w-2s-4c mixed z-sampliing
     root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434"
     df = _parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 64
-    npt.assert_array_equal(
-        df["time_point"].unique(),
-        [
-            "1",
-        ],
-    )
-    npt.assert_array_equal(
-        df["z"].unique(),
-        [
-            None,
-            "1",
-            "2",
-            "3",
-        ],
-    )
-    npt.assert_array_equal(
-        df["name"].unique(),
-        [
-            "9987",
-        ],
-    )
-    npt.assert_array_equal(
-        df["well"].unique(),
-        [
-            "B02",
-            "B03",
-        ],
-    )
-    npt.assert_array_equal(
-        df["field"].unique(),
-        [
-            "s1",
-            "s2",
-        ],
-    )
-    npt.assert_array_equal(
-        df["channel"].unique(),
-        [
-            "w1",
-            "w2",
-            "w3",
-            "w4",
-        ],
-    )
-    npt.assert_array_equal(
-        df["dir_name"].unique(),
-        [
-            "9987_Plate_3434",
-        ],
-    )
+    npt.assert_array_equal(df["time_point"].unique(), ["1"])
+    npt.assert_array_equal(df["z"].unique(), [None, "1", "2", "3"])
+    npt.assert_array_equal(df["name"].unique(), ["9987"])
+    npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
+    npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
+    npt.assert_array_equal(df["channel"].unique(), ["w1", "w2", "w3", "w4"])
+    npt.assert_array_equal(df["dir_name"].unique(), ["9987_Plate_3434"])
     # all z-planes:
     npt.assert_array_equal(
-        df.query("channel=='w1'")["z"].unique(),
-        [
-            None,
-            "1",
-            "2",
-            "3",
-        ],
+        df.query("channel=='w1'")["z"].unique(), [None, "1", "2", "3"]
     )
     # only projection:
     npt.assert_array_equal(
-        df.query("channel=='w2'")["z"].unique(),
-        [
-            None,
-            "1",
-            "2",
-            "3",
-        ],
+        df.query("channel=='w2'")["z"].unique(), [None, "1", "2", "3"]
     )
     # only 1 plane (0um offset):
     npt.assert_array_equal(
-        df.query("channel=='w3'")["z"].unique(),
-        [
-            None,
-            "1",
-            "2",
-            "3",
-        ],
+        df.query("channel=='w3'")["z"].unique(), [None, "1", "2", "3"]
     )
     # only 1 plane (10um offset):
     npt.assert_array_equal(
-        df.query("channel=='w4'")["z"].unique(),
-        [
-            None,
-            "1",
-            "2",
-            "3",
-        ],
+        df.query("channel=='w4'")["z"].unique(), [None, "1", "2", "3"]
     )
 
     # 6t-1z-2w-2s-4c mixed time-sampling
@@ -593,105 +205,28 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
     df = _parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 96
-    npt.assert_array_equal(
-        df["time_point"].unique(),
-        [
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-        ],
-    )
-    npt.assert_array_equal(
-        df["z"].unique(),
-        [
-            None,
-        ],
-    )
-    npt.assert_array_equal(
-        df["name"].unique(),
-        [
-            "9987",
-        ],
-    )
-    npt.assert_array_equal(
-        df["well"].unique(),
-        [
-            "B02",
-            "B03",
-        ],
-    )
-    npt.assert_array_equal(
-        df["field"].unique(),
-        [
-            "s1",
-            "s2",
-        ],
-    )
-    npt.assert_array_equal(
-        df["channel"].unique(),
-        [
-            "w1",
-            "w2",
-            "w3",
-            "w4",
-        ],
-    )
-    npt.assert_array_equal(
-        df["dir_name"].unique(),
-        [
-            "9987_Plate_3435",
-        ],
-    )
+    npt.assert_array_equal(df["time_point"].unique(), ["1", "2", "3", "4", "5", "6"])
+    npt.assert_array_equal(df["z"].unique(), [None])
+    npt.assert_array_equal(df["name"].unique(), ["9987"])
+    npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
+    npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
+    npt.assert_array_equal(df["channel"].unique(), ["w1", "w2", "w3", "w4"])
+    npt.assert_array_equal(df["dir_name"].unique(), ["9987_Plate_3435"])
     # all timepoints:
     npt.assert_array_equal(
-        df.query("channel=='w1'")["time_point"].unique(),
-        [
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-        ],
+        df.query("channel=='w1'")["time_point"].unique(), ["1", "2", "3", "4", "5", "6"]
     )
     # at first timepoint:
     npt.assert_array_equal(
-        df.query("channel=='w2'")["time_point"].unique(),
-        [
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-        ],
+        df.query("channel=='w2'")["time_point"].unique(), ["1", "2", "3", "4", "5", "6"]
     )
     # at first and last timepoint:
     npt.assert_array_equal(
-        df.query("channel=='w3'")["time_point"].unique(),
-        [
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-        ],
+        df.query("channel=='w3'")["time_point"].unique(), ["1", "2", "3", "4", "5", "6"]
     )
     # at every 3rd timepoint:
     npt.assert_array_equal(
-        df.query("channel=='w4'")["time_point"].unique(),
-        [
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-        ],
+        df.query("channel=='w4'")["time_point"].unique(), ["1", "2", "3", "4", "5", "6"]
     )
 
 
@@ -713,3 +248,12 @@ def test_fill_mixed_acquisitions(temp_dir):
         assert len(df[df.channel == c].time_point.unique()) == len(
             df.time_point.unique()
         )
+
+    # 6t-1z-2w-2s-4c mixed time-sampling
+    root_dir = temp_dir / "direct_transfer" / "3435"
+    df = _parse_MD_plate_folder(root_dir)
+    df = df[~((df.time_point == "1") & (df.channel == "w1"))]
+    with pytest.raises(ValueError):
+        _fill_mixed_acquisitions(df)
+
+    assert _fill_mixed_acquisitions(None) is None
