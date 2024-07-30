@@ -150,7 +150,7 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
     npt.assert_array_equal(df["name"].unique(), ["9987"])
     npt.assert_array_equal(df["well"].unique(), ["B02"])
     npt.assert_array_equal(df["field"].unique(), [None])
-    npt.assert_array_equal(df["channel"].unique(), [None])
+    npt.assert_array_equal(df["channel"].unique(), ["w0"])
     npt.assert_array_equal(df["dir_name"].unique(), ["9987_Plate_3420"])
 
     # 1t-3z-2w-2s-2c

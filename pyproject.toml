@@ -36,8 +36,11 @@ classifiers = [
 ]
 # add your package dependencies here
 dependencies = [
+    "faim-ipa==0.3.13",
+    "dask",
     "numpy",
     "pandas",
+    "tifffile",
     "xarray",
 ]
 
