@@ -141,6 +141,16 @@ def _check_if_channel_contains_timeseries(fns_xr: xr.DataArray, c: int) -> bool:
     return True
 
 
+# function to read images from filenames
+def _read_images(x: ArrayLike, ny: int, nx: int, im_dtype: type) -> ArrayLike:
+    images = np.zeros((*x.shape, ny, nx), dtype=im_dtype)
+    for i in np.ndindex(x.shape):
+        filename = x[i]
+        if filename != "":
+            images[i] = tifffile.imread(filename)
+    return images
+
+
 def lazy_load_plate_as_xr(fns_xr: xr.DataArray) -> xr.DataArray:
     """
     Lazily load the images from the filenames in the xarray into a new xarray.
@@ -202,15 +212,6 @@ def lazy_load_plate_as_xr(fns_xr: xr.DataArray) -> xr.DataArray:
             raise ValueError(
                 "More than one timepoint found, but unable to determine dt."
             )
-
-    # function to read images from filenames
-    def _read_images(x: ArrayLike, ny: int, nx: int, im_dtype: type) -> ArrayLike:
-        images = np.zeros((*x.shape, ny, nx), dtype=im_dtype)
-        for i in np.ndindex(x.shape):
-            filename = x[i]
-            if filename != "":
-                images[i] = tifffile.imread(filename)
-        return images
 
     # create dask-array for images by mapping _read_images over fns_xr
     fns_shape = fns_xr.shape
