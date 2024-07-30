@@ -1,4 +1,4 @@
-import glob
+import os
 import re
 from pathlib import Path
 from typing import Union
@@ -18,7 +18,7 @@ _file_pattern = re.compile(
 )
 
 
-def _parse_file(fn: str) -> dict:
+def _parse_file(fn: Union[Path, str]) -> dict:
     fn = Path(fn).as_posix()
     m = _file_pattern.fullmatch(fn)
     if m:
@@ -28,9 +28,13 @@ def _parse_file(fn: str) -> dict:
 
 
 def _parse_MD_plate_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
-    fns1 = glob.glob("**/*.tif", root_dir=root_dir, recursive=True)
-    fns2 = glob.glob("**/*.TIF", root_dir=root_dir, recursive=True)
-    fns = fns1 + fns2
+    fns = []
+    for root, _, filenames in os.walk(root_dir):
+        for fn in filenames:
+            full_path = Path(root) / fn
+            relative_path = full_path.relative_to(root_dir)
+            fns.append(relative_path.as_posix())
+
     files = []
     for fn in fns:
         row = _parse_file(fn)
