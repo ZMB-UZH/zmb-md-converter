@@ -1,9 +1,11 @@
+import numpy as np
 import pandas as pd
 import pytest
 
 from zmb_md_converter.io.assembly import (
     _check_if_channel_contains_stack,
     _check_if_channel_contains_timeseries,
+    _read_images,
     create_filename_structure_MD,
     lazy_load_plate_as_xr,
 )
@@ -137,6 +139,26 @@ def test_check_if_channel_contains_timeseries(temp_dir):
     assert not _check_if_channel_contains_timeseries(fns_xr, 3)
 
 
+def test_read_images(temp_dir):
+    # 1t-1z-1w-1s-1c
+    root_dir = temp_dir / "direct_transfer" / "3420"
+    files_df = _parse_MD_plate_folder(root_dir)
+    fns_xr = create_filename_structure_MD(files_df)
+
+    output = _read_images(fns_xr.data, ny=256, nx=256, im_dtype="uint16")
+    assert output.shape == (1, 1, 1, 1, 1, 256, 256)
+
+    output = _read_images(
+        fns_xr.data[0, 0, 0, 0, :1], ny=256, nx=256, im_dtype="uint16"
+    )
+    assert output.shape == (1, 256, 256)
+    assert any(np.unique(output) != 0)
+
+    fns_xr.data[0, 0, 0, 0, 0] = ""
+    output = _read_images(fns_xr, ny=256, nx=256, im_dtype="uint16")
+    assert all(np.unique(output) == 0)
+
+
 def test_lazy_load_plate_as_xr(temp_dir):
     # 1t-1z-1w-1s-1c
     root_dir = temp_dir / "direct_transfer" / "3420"
@@ -162,6 +184,9 @@ def test_lazy_load_plate_as_xr(temp_dir):
     assert data_xr.dy == 1.3672
     assert data_xr.dx == 1.3672
 
+    with pytest.raises(ValueError):
+        lazy_load_plate_as_xr(fns_xr[:, :, :, 1:, :])
+
     # 6t-1z-2w-2s-4c mixed time-sampling
     root_dir = temp_dir / "direct_transfer" / "3435"
     files_df = _parse_MD_plate_folder(root_dir)
@@ -173,3 +198,6 @@ def test_lazy_load_plate_as_xr(temp_dir):
     assert data_xr.dz == 0
     assert data_xr.dy == 1.3672
     assert data_xr.dx == 1.3672
+
+    with pytest.raises(ValueError):
+        lazy_load_plate_as_xr(fns_xr[:, :, :, 1:, :])

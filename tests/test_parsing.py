@@ -138,6 +138,11 @@ def test_parse_MD_plate_folder_directTransfer(temp_dir):
     # at every 3rd timepoint:
     npt.assert_array_equal(df.query("channel=='w4'")["time_point"].unique(), ["1", "4"])
 
+    # test wrong folder
+    root_dir = temp_dir / "direct_transfer"
+    df = _parse_MD_plate_folder(root_dir)
+    assert df is None
+
 
 def test_parse_MD_plate_folder_MetaXpress(temp_dir):
     # 1t-1z-1w-1s-1c
@@ -243,3 +248,12 @@ def test_fill_mixed_acquisitions(temp_dir):
         assert len(df[df.channel == c].time_point.unique()) == len(
             df.time_point.unique()
         )
+
+    # 6t-1z-2w-2s-4c mixed time-sampling
+    root_dir = temp_dir / "direct_transfer" / "3435"
+    df = _parse_MD_plate_folder(root_dir)
+    df = df[~((df.time_point == "1") & (df.channel == "w1"))]
+    with pytest.raises(ValueError):
+        _fill_mixed_acquisitions(df)
+
+    assert _fill_mixed_acquisitions(None) is None
