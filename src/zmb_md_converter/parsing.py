@@ -46,7 +46,8 @@ def _parse_MD_plate_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
     if files:
         df = pd.DataFrame(files)
         df.loc[df.z == "0", "z"] = None
-        df.loc[df.channel.isnull(), "channel"] = "w0"
+        df.loc[df.channel.isnull(), "channel"] = "w1"
+        df.loc[df.field.isnull(), "field"] = "s1"
         return df
     else:
         return None
