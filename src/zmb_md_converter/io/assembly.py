@@ -7,7 +7,7 @@ import tifffile
 import xarray as xr
 from numpy.typing import ArrayLike
 
-from zmb_md_converter.io.MetaSeriesTiff import (
+from zmb_md_converter.io.metaseries import (
     load_metaseries_tiff,
     load_metaseries_tiff_metadata,
 )
@@ -93,6 +93,7 @@ def create_filename_structure_MD(
             "channel": channels,
             "plane": planes,
         },
+        attrs={"plate_name": files["name"].values[0]},
     )
 
     return fns_xr
@@ -141,6 +142,86 @@ def _check_if_channel_contains_timeseries(fns_xr: xr.DataArray, c: int) -> bool:
     return True
 
 
+def _get_z_spacing(fns_xr: xr.DataArray) -> float:
+    # Get approximate dz from first stack
+    dz = 0
+    if fns_xr.shape[-1] > 1:
+        for c in range(fns_xr.shape[3]):
+            if _check_if_channel_contains_stack(fns_xr, c):
+                z_positions = []
+                for z in range(fns_xr.shape[-1]):
+                    metadata = load_metaseries_tiff_metadata(
+                        fns_xr.values[0, 0, 0, c, z]
+                    )
+                    z_positions.append(metadata["stage-position-z"])
+                z_positions_array = np.array(z_positions)
+                dz = np.mean(z_positions_array[1:] - z_positions_array[:-1])
+                dz = round(dz, 3)
+                break
+        if dz == 0:
+            raise ValueError("More than one plane found, but unable to determine dz.")
+
+    return dz
+
+
+def _get_t_spacing(fns_xr: xr.DataArray) -> float:
+    # Get approximate dt from timeseries
+    dt = 0
+    if fns_xr.shape[2] > 1:
+        for c in range(fns_xr.shape[3]):
+            if _check_if_channel_contains_timeseries(fns_xr, c):
+                timepoints = []
+                for t in range(fns_xr.shape[2]):
+                    metadata = load_metaseries_tiff_metadata(
+                        fns_xr.values[0, 0, t, c, 0]
+                    )
+                    timepoints.append(metadata["acquisition-time-local"])
+                timepoints_array = np.array(timepoints)
+                dt = np.mean(
+                    timepoints_array[1:] - timepoints_array[:-1]
+                ).total_seconds()
+                dt = round(dt, 3)
+                break
+        if dt == 0:
+            raise ValueError(
+                "More than one timepoint found, but unable to determine dt."
+            )
+
+    return dt
+
+
+def _build_channel_metadata(fns_xr: xr.DataArray) -> dict:
+    channel_metadata = {}
+    for c, channel in enumerate(fns_xr.channel.values):
+        metadata = load_metaseries_tiff_metadata(fns_xr.values[0, 0, 0, c, 0])
+        if "Z Projection Method" in metadata:
+            name = (
+                f"{metadata['Z Projection Method'].replace(' ', '-')}-Projection_"
+                f"{metadata['_IllumSetting_']}"
+            )
+        else:
+            name = metadata["_IllumSetting_"]
+        spatial_calibration_units = metadata["spatial-calibration-units"]
+        if spatial_calibration_units == "um":
+            spatial_calibration_units = "µm"
+        channel_metadata[channel] = {
+            # 'channel_index': int(channel[1:]),  # Note: faim-ipa uses -1
+            "plate_name": fns_xr.attrs["plate_name"],
+            "channel_name": name,
+            "dx": metadata["spatial-calibration-x"],
+            "dy": metadata["spatial-calibration-y"],
+            "dz": _get_z_spacing(fns_xr),
+            "spatial_calibration_units": spatial_calibration_units,
+            "dt": _get_t_spacing(fns_xr),
+            "time_calibration_units": "s",
+            "wavelength": metadata["wavelength"],
+            "exposure_time": float(metadata["Exposure Time"].split(" ")[0]),
+            "exposure_time_unit": metadata["Exposure Time"].split(" ")[1],
+            "objective": metadata["_MagSetting_"],
+        }
+    return channel_metadata
+
+
 # function to read images from filenames
 def _read_images(x: ArrayLike, ny: int, nx: int, im_dtype: type) -> ArrayLike:
     images = np.zeros((*x.shape, ny, nx), dtype=im_dtype)
@@ -169,49 +250,7 @@ def lazy_load_plate_as_xr(fns_xr: xr.DataArray) -> xr.DataArray:
     image, metadata = load_metaseries_tiff(fn_meta)
     x_dim = metadata["pixel-size-x"]
     y_dim = metadata["pixel-size-y"]
-    dx = metadata["spatial-calibration-x"]
-    dy = metadata["spatial-calibration-x"]
     dtype = image.dtype
-
-    # Get approximate dz from first stack
-    dz = 0
-    if fns_xr.shape[-1] > 1:
-        for c in range(fns_xr.shape[3]):
-            if _check_if_channel_contains_stack(fns_xr, c):
-                z_positions = []
-                for z in range(fns_xr.shape[-1]):
-                    metadata = load_metaseries_tiff_metadata(
-                        fns_xr.values[0, 0, 0, c, z]
-                    )
-                    z_positions.append(metadata["stage-position-z"])
-                z_positions_array = np.array(z_positions)
-                dz = np.mean(z_positions_array[1:] - z_positions_array[:-1])
-                dz = round(dz, 3)
-                break
-        if dz == 0:
-            raise ValueError("More than one plane found, but unable to determine dz.")
-
-    # Get approximate dt from timeseries
-    dt = 0
-    if fns_xr.shape[2] > 1:
-        for c in range(fns_xr.shape[3]):
-            if _check_if_channel_contains_timeseries(fns_xr, c):
-                timepoints = []
-                for t in range(fns_xr.shape[2]):
-                    metadata = load_metaseries_tiff_metadata(
-                        fns_xr.values[0, 0, t, c, 0]
-                    )
-                    timepoints.append(metadata["acquisition-time-local"])
-                timepoints_array = np.array(timepoints)
-                dt = np.mean(
-                    timepoints_array[1:] - timepoints_array[:-1]
-                ).total_seconds()
-                dt = round(dt, 3)
-                break
-        if dt == 0:
-            raise ValueError(
-                "More than one timepoint found, but unable to determine dt."
-            )
 
     # create dask-array for images by mapping _read_images over fns_xr
     fns_shape = fns_xr.shape
@@ -228,17 +267,13 @@ def lazy_load_plate_as_xr(fns_xr: xr.DataArray) -> xr.DataArray:
         nx=x_dim,
         im_dtype=dtype,
     )
+
     images_xr = xr.DataArray(
         images_da,
         name="images",
         dims=(*fns_xr.dims, "y", "x"),
         coords=fns_xr.coords,
+        attrs=_build_channel_metadata(fns_xr),
     )
-    images_xr.attrs = {
-        "dt": dt,
-        "dz": dz,
-        "dy": dy,
-        "dx": dx,
-    }
 
     return images_xr
