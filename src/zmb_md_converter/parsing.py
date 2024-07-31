@@ -52,6 +52,31 @@ def _parse_MD_plate_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
         return None
 
 
+def _parse_MD_tz_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
+    subdirs = [child for child in Path(root_dir).iterdir() if child.is_dir()]
+    dfs = []
+    for subdir in subdirs:
+        dfs.append(_parse_MD_plate_folder(subdir))
+    dfs = [df for df in dfs if df is not None]
+
+    # Check if all DataFrames in dfs have the same length
+    if len(dfs) > 1:
+        lengths = [len(df) for df in dfs]
+        if not all(length == lengths[0] for length in lengths):
+            # TODO: also check if all columns are the same
+            raise ValueError("Data in subfolders have inconsistent shapes.")
+
+    # update time_point column
+    dfs = sorted(dfs, key=lambda x: x.iloc[0].dir_name)
+    for i, df in enumerate(dfs):
+        df["time_point"] = str(i + 1)
+
+    if dfs:
+        return pd.concat(dfs, ignore_index=True)
+    else:
+        return None
+
+
 def _fill_mixed_acquisitions(df: pd.DataFrame) -> pd.DataFrame:
     """
     Function to fill missing slices and timepoints in a dataframe.

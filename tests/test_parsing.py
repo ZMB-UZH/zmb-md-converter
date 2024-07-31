@@ -7,6 +7,7 @@ from zmb_md_converter.parsing import (
     _fill_mixed_acquisitions,
     _parse_file,
     _parse_MD_plate_folder,
+    _parse_MD_tz_folder,
 )
 
 
@@ -228,6 +229,30 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
     npt.assert_array_equal(
         df.query("channel=='w4'")["time_point"].unique(), ["1", "2", "3", "4", "5", "6"]
     )
+
+
+def test_parse_MD_tz_folder(temp_dir):
+    # 1t-1z-1w-1s-1c
+    root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420"
+    df = _parse_MD_tz_folder(root_dir)
+    assert df is None
+
+    # timeseries
+    root_dir = temp_dir / "direct_transfer" / "timeseries"
+    df = _parse_MD_tz_folder(root_dir)
+    assert len(df) == 96
+    npt.assert_array_equal(df.time_point.unique(), ["1", "2", "3"])
+
+    # timeseries
+    root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "timeseries"
+    df = _parse_MD_tz_folder(root_dir)
+    assert len(df) == 96
+    npt.assert_array_equal(df.time_point.unique(), ["1", "2", "3"])
+
+    # folder with random plates
+    root_dir = temp_dir / "MetaXpress_all-z_include-projection"
+    with pytest.raises(ValueError):
+        _parse_MD_tz_folder(root_dir)
 
 
 def test_fill_mixed_acquisitions(temp_dir):
