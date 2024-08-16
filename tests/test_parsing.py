@@ -6,8 +6,8 @@ import pytest
 from zmb_md_converter.parsing import (
     _fill_mixed_acquisitions,
     _parse_file,
-    _parse_MD_plate_folder,
-    _parse_MD_tz_folder,
+    parse_MD_plate_folder,
+    parse_MD_tz_folder,
 )
 
 
@@ -69,7 +69,7 @@ def test_parse_file(input_fn, expected_dict):
 def test_parse_MD_plate_folder_directTransfer(temp_dir):
     # 1t-1z-1w-1s-1c
     root_dir = temp_dir / "direct_transfer" / "3420"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 1
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
@@ -82,7 +82,7 @@ def test_parse_MD_plate_folder_directTransfer(temp_dir):
 
     # 1t-3z-2w-2s-2c
     root_dir = temp_dir / "direct_transfer" / "3433"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 32
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
@@ -95,7 +95,7 @@ def test_parse_MD_plate_folder_directTransfer(temp_dir):
 
     # 1t-3z-2w-2s-4c mixed z-sampliing
     root_dir = temp_dir / "direct_transfer" / "3434"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 28
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
@@ -118,7 +118,7 @@ def test_parse_MD_plate_folder_directTransfer(temp_dir):
 
     # 6t-1z-2w-2s-4c mixed time-sampling
     root_dir = temp_dir / "direct_transfer" / "3435"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 44
     npt.assert_array_equal(df["time_point"].unique(), ["1", "2", "3", "4", "5", "6"])
@@ -141,14 +141,14 @@ def test_parse_MD_plate_folder_directTransfer(temp_dir):
 
     # test wrong folder
     root_dir = temp_dir / "direct_transfer"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     assert df is None
 
 
 def test_parse_MD_plate_folder_MetaXpress(temp_dir):
     # 1t-1z-1w-1s-1c
     root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 1
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
@@ -161,7 +161,7 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
 
     # 1t-3z-2w-2s-2c
     root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3433"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 32
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
@@ -174,7 +174,7 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
 
     # 1t-3z-2w-2s-4c mixed z-sampliing
     root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 64
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
@@ -203,7 +203,7 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
 
     # 6t-1z-2w-2s-4c mixed time-sampling
     root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3435"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 96
     npt.assert_array_equal(df["time_point"].unique(), ["1", "2", "3", "4", "5", "6"])
@@ -234,31 +234,31 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
 def test_parse_MD_tz_folder(temp_dir):
     # 1t-1z-1w-1s-1c
     root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420"
-    df = _parse_MD_tz_folder(root_dir)
+    df = parse_MD_tz_folder(root_dir)
     assert df is None
 
     # timeseries
     root_dir = temp_dir / "direct_transfer" / "timeseries"
-    df = _parse_MD_tz_folder(root_dir)
+    df = parse_MD_tz_folder(root_dir)
     assert len(df) == 96
     npt.assert_array_equal(df.time_point.unique(), ["1", "2", "3"])
 
     # timeseries
     root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "timeseries"
-    df = _parse_MD_tz_folder(root_dir)
+    df = parse_MD_tz_folder(root_dir)
     assert len(df) == 96
     npt.assert_array_equal(df.time_point.unique(), ["1", "2", "3"])
 
     # folder with random plates
     root_dir = temp_dir / "MetaXpress_all-z_include-projection"
     with pytest.raises(ValueError):
-        _parse_MD_tz_folder(root_dir)
+        parse_MD_tz_folder(root_dir)
 
 
 def test_fill_mixed_acquisitions(temp_dir):
     # 1t-3z-2w-2s-4c mixed z-sampliing
     root_dir = temp_dir / "direct_transfer" / "3434"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     df = _fill_mixed_acquisitions(df)
     assert len(df) == 64
     for c in df.channel.unique():
@@ -266,7 +266,7 @@ def test_fill_mixed_acquisitions(temp_dir):
 
     # 6t-1z-2w-2s-4c mixed time-sampling
     root_dir = temp_dir / "direct_transfer" / "3435"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     df = _fill_mixed_acquisitions(df)
     assert len(df) == 96
     for c in df.channel.unique():
@@ -276,7 +276,7 @@ def test_fill_mixed_acquisitions(temp_dir):
 
     # 6t-1z-2w-2s-4c mixed time-sampling
     root_dir = temp_dir / "direct_transfer" / "3435"
-    df = _parse_MD_plate_folder(root_dir)
+    df = parse_MD_plate_folder(root_dir)
     df = df[~((df.time_point == "1") & (df.channel == "w1"))]
     with pytest.raises(ValueError):
         _fill_mixed_acquisitions(df)

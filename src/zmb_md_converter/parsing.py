@@ -19,6 +19,17 @@ _file_pattern = re.compile(
 
 
 def _parse_file(fn: Union[Path, str]) -> dict:
+    """
+    Function to parse a single file name.
+
+    The path name should start after the root directory of the MD-plate.
+
+    Args:
+        fn (Union[Path, str]): The file name to parse.
+
+    Returns:
+        dict: A dictionary containing the parsed data.
+    """
     fn = Path(fn).as_posix()
     m = _file_pattern.fullmatch(fn)
     if m:
@@ -27,7 +38,16 @@ def _parse_file(fn: Union[Path, str]) -> dict:
         return {}
 
 
-def _parse_MD_plate_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
+def parse_MD_plate_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
+    """
+    Parse an MD-plate folder.
+
+    Args:
+        root_dir (Union[Path, str]): The root directory of the MD-plate.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the parsed data.
+    """
     fns = []
     for root, _, filenames in os.walk(root_dir):
         for fn in filenames:
@@ -53,11 +73,16 @@ def _parse_MD_plate_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
         return None
 
 
-def _parse_MD_tz_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
+def parse_MD_tz_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
+    """
+    Function to parse a folder containing z-stacks over time data.
+
+    The root_dir should contain multiple MD-plate folders.
+    """
     subdirs = [child for child in Path(root_dir).iterdir() if child.is_dir()]
     dfs = []
     for subdir in subdirs:
-        dfs.append(_parse_MD_plate_folder(subdir))
+        dfs.append(parse_MD_plate_folder(subdir))
     dfs = [df for df in dfs if df is not None]
 
     # Check if all DataFrames in dfs have the same length
