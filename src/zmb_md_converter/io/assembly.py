@@ -143,7 +143,8 @@ def _check_if_channel_contains_timeseries(fns_xr: xr.DataArray, c: int) -> bool:
 
 
 def _get_z_spacing(fns_xr: xr.DataArray) -> float:
-    # Get approximate dz from first stack
+    """Get approximate dz from first stack."""
+    # TODO: maybe calculated from lazy_load_stage_positions
     dz = 0
     if fns_xr.shape[-1] > 1:
         for c in range(fns_xr.shape[3]):
@@ -165,7 +166,8 @@ def _get_z_spacing(fns_xr: xr.DataArray) -> float:
 
 
 def _get_t_spacing(fns_xr: xr.DataArray) -> float:
-    # Get approximate dt from timeseries
+    """Get approximate dt from timeseries."""
+    # TODO: maybe calculated from lazy_load_stage_positions (need to include time there)
     dt = 0
     if fns_xr.shape[2] > 1:
         for c in range(fns_xr.shape[3]):
@@ -191,6 +193,9 @@ def _get_t_spacing(fns_xr: xr.DataArray) -> float:
 
 
 def _build_channel_metadata(fns_xr: xr.DataArray) -> dict:
+    dz = _get_z_spacing(fns_xr)
+    dt = _get_t_spacing(fns_xr)
+
     channel_metadata = {}
     for c, channel in enumerate(fns_xr.channel.values):
         metadata = load_metaseries_tiff_metadata(fns_xr.values[0, 0, 0, c, 0])
@@ -210,9 +215,9 @@ def _build_channel_metadata(fns_xr: xr.DataArray) -> dict:
             "channel_name": name,
             "dx": metadata["spatial-calibration-x"],
             "dy": metadata["spatial-calibration-y"],
-            "dz": _get_z_spacing(fns_xr),
+            "dz": dz,
             "spatial_calibration_units": spatial_calibration_units,
-            "dt": _get_t_spacing(fns_xr),
+            "dt": dt,
             "time_calibration_units": "s",
             "wavelength": metadata["wavelength"],
             "exposure_time": float(metadata["Exposure Time"].split(" ")[0]),
@@ -222,8 +227,56 @@ def _build_channel_metadata(fns_xr: xr.DataArray) -> dict:
     return channel_metadata
 
 
-# function to read images from filenames
+def _read_stage_positions(x: ArrayLike) -> ArrayLike:
+    """Function to read stage positions from filenames."""
+    stage_positions = np.zeros((*x.shape, 3), dtype=float)
+    for i in np.ndindex(x.shape):
+        filename = x[i]
+        if filename != "":
+            metadata = load_metaseries_tiff_metadata(filename)
+            stage_positions[i] = [
+                metadata["stage-position-z"],
+                metadata["stage-position-y"],
+                metadata["stage-position-x"],
+            ]
+    return stage_positions
+
+
+def lazy_load_stage_positions(fns_xr: xr.DataArray) -> xr.DataArray:
+    """
+    Lazily load the stage positions (z,y,x) from the filenames in the xarray.
+
+    Args:
+        fns_xr (xr.DataArray): An xarray containing the filenames in the
+            correct structure.
+
+    Returns:
+        xr.DataArray: An xarray with shape WFTCZ3 containing the stage
+            positions. The data are loaded as a dask array.
+    """
+    # create dask-array for images by mapping _read_stage_positions over fns_xr
+    fns_shape = fns_xr.shape
+    positions_da = da.map_blocks(
+        _read_stage_positions,
+        da.from_array(fns_xr.data, chunks=(1,) * len(fns_shape)),
+        chunks=da.core.normalize_chunks((1,) * len(fns_shape) + (3,), (*fns_shape, 3)),
+        new_axis=[len(fns_shape)],
+        meta=np.array([], dtype=float),
+    )
+
+    positions_xr = xr.DataArray(
+        positions_da,
+        name="stage_positions",
+        dims=(*fns_xr.dims, "pos"),
+        coords=fns_xr.coords,
+    )
+    positions_xr.coords.update({"pos": ["pos_z", "pos_y", "pos_x"]})
+
+    return positions_xr
+
+
 def _read_images(x: ArrayLike, ny: int, nx: int, im_dtype: type) -> ArrayLike:
+    """Function to read images from filenames."""
     images = np.zeros((*x.shape, ny, nx), dtype=im_dtype)
     for i in np.ndindex(x.shape):
         filename = x[i]
@@ -232,7 +285,7 @@ def _read_images(x: ArrayLike, ny: int, nx: int, im_dtype: type) -> ArrayLike:
     return images
 
 
-def lazy_load_plate_as_xr(fns_xr: xr.DataArray) -> xr.DataArray:
+def lazy_load_images(fns_xr: xr.DataArray) -> xr.DataArray:
     """
     Lazily load the images from the filenames in the xarray into a new xarray.
 
@@ -277,3 +330,57 @@ def lazy_load_plate_as_xr(fns_xr: xr.DataArray) -> xr.DataArray:
     )
 
     return images_xr
+
+
+# TODO: write tests for this function
+def lazy_load_plate(fns_xr: xr.DataArray) -> xr.Dataset:
+    """
+    Lazily load the plate data (images & stage postitions & image coordinates).
+
+    Args:
+        fns_xr (xr.DataArray): An xarray containing the filenames in the
+            correct structure.
+
+    Returns:
+        xr.Dataset: An xarray dataset containing the images and stage
+            positions. The condensed stage coordinates and time points are
+            included as coordinates.
+    """
+    images_xr = lazy_load_images(fns_xr)
+    positions_xr = lazy_load_stage_positions(fns_xr)
+
+    # compute the x and y coordinates for the stage positions only once per
+    # time, channel, and plane (assume that all are roughly the same)
+    coords_x = (
+        positions_xr.isel(time=0, channel=0, plane=0, drop=True)
+        .sel(pos="pos_x")
+        .compute()
+    )
+    coords_y = (
+        positions_xr.isel(time=0, channel=0, plane=0, drop=True)
+        .sel(pos="pos_y")
+        .compute()
+    )
+    # compute the z and t coordinates from the estimated dz and dt
+    dz = images_xr.attrs[images_xr.coords["channel"].values[0]]["dz"]
+    coords_z = xr.DataArray(
+        data=np.array([n * dz for n in range(len(images_xr.coords["plane"]))]),
+        coords={"plane": positions_xr.coords["plane"]},
+    )
+    dt = images_xr.attrs[images_xr.coords["channel"].values[0]]["dt"]
+    coords_t = xr.DataArray(
+        data=np.array([n * dt for n in range(len(images_xr.coords["time"]))]),
+        coords={"time": positions_xr.coords["time"]},
+    )
+
+    data = xr.Dataset(
+        {images_xr.name: images_xr, positions_xr.name: positions_xr},
+        coords={
+            "coords_x": coords_x,
+            "coords_y": coords_y,
+            "coords_z": coords_z,
+            "coords_t": coords_t,
+        },
+    )
+
+    return data

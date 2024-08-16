@@ -1,6 +1,7 @@
 # TODO: Expand tests to cover more MetaXpress exports and include timeseries folder.
 
 import numpy as np
+import numpy.testing as npt
 import pandas as pd
 import pytest
 
@@ -11,8 +12,10 @@ from zmb_md_converter.io.assembly import (
     _get_t_spacing,
     _get_z_spacing,
     _read_images,
+    _read_stage_positions,
     create_filename_structure_MD,
-    lazy_load_plate_as_xr,
+    lazy_load_images,
+    lazy_load_stage_positions,
 )
 from zmb_md_converter.parsing import parse_MD_plate_folder
 
@@ -194,7 +197,7 @@ def test_get_t_spacing(temp_dir):
     assert _get_t_spacing(fns_xr) == 30.029
 
     with pytest.raises(ValueError):
-        lazy_load_plate_as_xr(fns_xr[:, :, :, 1:, :])
+        _get_t_spacing(fns_xr[:, :, :, 1:, :])
 
 
 def test_build_channel_metadata(temp_dir):
@@ -257,12 +260,26 @@ def test_read_images(temp_dir):
     assert all(np.unique(output) == 0)
 
 
+def test_read_stage_positions(temp_dir):
+    # 1t-1z-1w-1s-1c
+    root_dir = temp_dir / "direct_transfer" / "3420"
+    files_df = parse_MD_plate_folder(root_dir)
+    fns_xr = create_filename_structure_MD(files_df)
+
+    output = _read_stage_positions(fns_xr.data)
+    assert output.shape == (1, 1, 1, 1, 1, 3)
+
+    output = _read_stage_positions(fns_xr.data[0, 0, 0, 0, :1])
+    assert output.shape == (1, 3)
+    npt.assert_array_equal(output, [[10025.4, 19885.0, 22985.0]])
+
+
 def test_lazy_load_plate_as_xr(temp_dir):
     # 1t-1z-1w-1s-1c
     root_dir = temp_dir / "direct_transfer" / "3420"
     files_df = parse_MD_plate_folder(root_dir)
     fns_xr = create_filename_structure_MD(files_df)
-    data_xr = lazy_load_plate_as_xr(fns_xr)
+    data_xr = lazy_load_images(fns_xr)
     assert data_xr.shape == (1, 1, 1, 1, 1, 256, 256)
     assert data_xr.compute().shape == (1, 1, 1, 1, 1, 256, 256)
     assert data_xr.dtype == "uint16"
@@ -271,7 +288,7 @@ def test_lazy_load_plate_as_xr(temp_dir):
     root_dir = temp_dir / "direct_transfer" / "3434"
     files_df = parse_MD_plate_folder(root_dir)
     fns_xr = create_filename_structure_MD(files_df)
-    data_xr = lazy_load_plate_as_xr(fns_xr)
+    data_xr = lazy_load_images(fns_xr)
     assert data_xr.shape == (2, 2, 1, 3, 3, 256, 256)
     assert data_xr.compute().shape == (2, 2, 1, 3, 3, 256, 256)
     assert data_xr.dtype == "uint16"
@@ -280,6 +297,18 @@ def test_lazy_load_plate_as_xr(temp_dir):
     root_dir = temp_dir / "direct_transfer" / "3435"
     files_df = parse_MD_plate_folder(root_dir)
     fns_xr = create_filename_structure_MD(files_df)
-    data_xr = lazy_load_plate_as_xr(fns_xr)
+    data_xr = lazy_load_images(fns_xr)
     assert data_xr.shape == (2, 2, 6, 4, 1, 256, 256)
     assert data_xr.compute().shape == (2, 2, 6, 4, 1, 256, 256)
+
+
+def test_lazy_load_stage_positions_as_xr(temp_dir):
+    # 1t-1z-1w-1s-1c
+    root_dir = temp_dir / "direct_transfer" / "3420"
+    files_df = parse_MD_plate_folder(root_dir)
+    fns_xr = create_filename_structure_MD(files_df)
+    positions_xr = lazy_load_stage_positions(fns_xr)
+    assert positions_xr.shape == (1, 1, 1, 1, 1, 3)
+    assert positions_xr.compute().shape == (1, 1, 1, 1, 1, 3)
+    assert positions_xr.dtype == "float64"
+    npt.assert_array_equal(positions_xr, [[[[[[10025.4, 19885.0, 22985.0]]]]]])
