@@ -3,7 +3,7 @@ import os
 import numpy.testing as npt
 import pytest
 
-from zmb_md_converter.parsing import (
+from zmb_md_converter.io.parsing import (
     _fill_mixed_acquisitions,
     _parse_file,
     parse_MD_plate_folder,

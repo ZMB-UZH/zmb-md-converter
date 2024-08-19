@@ -17,7 +17,7 @@ from zmb_md_converter.io.assembly import (
     lazy_load_images,
     lazy_load_stage_positions,
 )
-from zmb_md_converter.parsing import parse_MD_plate_folder
+from zmb_md_converter.io.parsing import parse_MD_plate_folder
 
 
 def test_create_filename_structure_MD(temp_dir):
