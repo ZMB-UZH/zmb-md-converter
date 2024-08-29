@@ -111,7 +111,7 @@ def _fill_mixed_acquisitions(df: pd.DataFrame) -> pd.DataFrame:
     (e.g. some channels have only projections, or only one timepoint), some
     slices are missing. This function fills the missing slices with the
     available data. !!!This will in the end duplicate some data and might not
-    be the best solution!!!
+    be the best default setting!!!
     """
     if df is None:
         return None
@@ -122,12 +122,7 @@ def _fill_mixed_acquisitions(df: pd.DataFrame) -> pd.DataFrame:
         # HANDLE SLICES
         # case 1: only projection is saved
         # -> fill all z with projection
-        if (
-            df[df.channel == c].z.unique()
-            == [
-                None,
-            ]
-        ).all():
+        if (df[df.channel == c].z.unique() == [None]).all():
             sub_df = df[(df.channel == c) & df.z.isna()].copy()
             for z in df.z.unique():
                 if z is not None:
@@ -135,12 +130,7 @@ def _fill_mixed_acquisitions(df: pd.DataFrame) -> pd.DataFrame:
                     df = pd.concat([df, sub_df], ignore_index=True)
         # case 2: only one z is saved
         # -> fill all z with that slice
-        if (
-            df[df.channel == c].z.unique()
-            == [
-                "1",
-            ]
-        ).all():
+        if (df[df.channel == c].z.unique() == ["1"]).all():
             sub_df = df[(df.channel == c) & (df.z == "1")].copy()
             for z in df.z.unique():
                 if z != "1":
