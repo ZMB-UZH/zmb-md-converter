@@ -17,7 +17,10 @@ repos:
     rev: typos-dict-v0.11.20
     hooks:
       - id: typos
-        args: [--force-exclude]  # omitting --write-changes
+        args: 
+          - --force-exclude  # omitting --write-changes
+          - --config
+          - typos.toml
         exclude: legacy/MDParallel2Hyperstack_v3.py
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
