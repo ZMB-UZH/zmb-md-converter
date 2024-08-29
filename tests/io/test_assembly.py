@@ -18,7 +18,7 @@ from zmb_md_converter.io.assembly import (
     lazy_load_plate,
     lazy_load_stage_positions,
 )
-from zmb_md_converter.io.parsing import parse_MD_plate_folder
+from zmb_md_converter.io.parsing import parse_MD_plate_folder, parse_MD_tz_folder
 
 
 def test_create_filename_structure_MD(temp_dir):
@@ -341,9 +341,9 @@ def test_lazy_load_plate(temp_dir):
     ]
 
     for root_dir in root_dir_list:
-        # 1t-1z-1w-1s-1c
-        root_dir = temp_dir / "direct_transfer" / "3420"
         files_df = parse_MD_plate_folder(root_dir)
+        if files_df is None:
+            files_df = parse_MD_tz_folder(root_dir)
         fns_xr = create_filename_structure_MD(files_df)
         dataset = lazy_load_plate(fns_xr)
         assert set(dataset.sizes) == set(expected_dataset_dims)
