@@ -19,6 +19,17 @@ _file_pattern = re.compile(
 
 
 def _parse_file(fn: Union[Path, str]) -> dict:
+    """
+    Function to parse a single file name.
+
+    The path name should start after the root directory of the MD-plate.
+
+    Args:
+        fn (Union[Path, str]): The file name to parse.
+
+    Returns:
+        dict: A dictionary containing the parsed data.
+    """
     fn = Path(fn).as_posix()
     m = _file_pattern.fullmatch(fn)
     if m:
@@ -27,7 +38,16 @@ def _parse_file(fn: Union[Path, str]) -> dict:
         return {}
 
 
-def _parse_MD_plate_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
+def parse_MD_plate_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
+    """
+    Parse an MD-plate folder.
+
+    Args:
+        root_dir (Union[Path, str]): The root directory of the MD-plate.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the parsed data.
+    """
     fns = []
     for root, _, filenames in os.walk(root_dir):
         for fn in filenames:
@@ -46,8 +66,39 @@ def _parse_MD_plate_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
     if files:
         df = pd.DataFrame(files)
         df.loc[df.z == "0", "z"] = None
-        df.loc[df.channel.isnull(), "channel"] = "w0"
+        df.loc[df.channel.isnull(), "channel"] = "w1"
+        df.loc[df.field.isnull(), "field"] = "s1"
         return df
+    else:
+        return None
+
+
+def parse_MD_tz_folder(root_dir: Union[Path, str]) -> pd.DataFrame:
+    """
+    Function to parse a folder containing z-stacks over time data.
+
+    The root_dir should contain multiple MD-plate folders.
+    """
+    subdirs = [child for child in Path(root_dir).iterdir() if child.is_dir()]
+    dfs = []
+    for subdir in subdirs:
+        dfs.append(parse_MD_plate_folder(subdir))
+    dfs = [df for df in dfs if df is not None]
+
+    # Check if all DataFrames in dfs have the same length
+    if len(dfs) > 1:
+        lengths = [len(df) for df in dfs]
+        if not all(length == lengths[0] for length in lengths):
+            # TODO: also check if all columns are the same
+            raise ValueError("Data in subfolders have inconsistent shapes.")
+
+    # update time_point column
+    dfs = sorted(dfs, key=lambda x: x.iloc[0].dir_name)
+    for i, df in enumerate(dfs):
+        df["time_point"] = str(i + 1)
+
+    if dfs:
+        return pd.concat(dfs, ignore_index=True)
     else:
         return None
 
@@ -60,7 +111,7 @@ def _fill_mixed_acquisitions(df: pd.DataFrame) -> pd.DataFrame:
     (e.g. some channels have only projections, or only one timepoint), some
     slices are missing. This function fills the missing slices with the
     available data. !!!This will in the end duplicate some data and might not
-    be the best solution!!!
+    be the best default setting!!!
     """
     if df is None:
         return None
@@ -71,12 +122,7 @@ def _fill_mixed_acquisitions(df: pd.DataFrame) -> pd.DataFrame:
         # HANDLE SLICES
         # case 1: only projection is saved
         # -> fill all z with projection
-        if (
-            df[df.channel == c].z.unique()
-            == [
-                None,
-            ]
-        ).all():
+        if (df[df.channel == c].z.unique() == [None]).all():
             sub_df = df[(df.channel == c) & df.z.isna()].copy()
             for z in df.z.unique():
                 if z is not None:
@@ -84,12 +130,7 @@ def _fill_mixed_acquisitions(df: pd.DataFrame) -> pd.DataFrame:
                     df = pd.concat([df, sub_df], ignore_index=True)
         # case 2: only one z is saved
         # -> fill all z with that slice
-        if (
-            df[df.channel == c].z.unique()
-            == [
-                "1",
-            ]
-        ).all():
+        if (df[df.channel == c].z.unique() == ["1"]).all():
             sub_df = df[(df.channel == c) & (df.z == "1")].copy()
             for z in df.z.unique():
                 if z != "1":
