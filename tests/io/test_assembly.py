@@ -15,6 +15,7 @@ from zmb_md_converter.io.assembly import (
     _read_stage_positions,
     create_filename_structure_MD,
     lazy_load_images,
+    lazy_load_plate,
     lazy_load_stage_positions,
 )
 from zmb_md_converter.io.parsing import parse_MD_plate_folder
@@ -240,6 +241,32 @@ def test_build_channel_metadata(temp_dir):
     assert output["w1"]["objective"] == "40X Plan Apo Lambda"
 
 
+def test_read_stage_positions(temp_dir):
+    # 1t-1z-1w-1s-1c
+    root_dir = temp_dir / "direct_transfer" / "3420"
+    files_df = parse_MD_plate_folder(root_dir)
+    fns_xr = create_filename_structure_MD(files_df)
+
+    output = _read_stage_positions(fns_xr.data)
+    assert output.shape == (1, 1, 1, 1, 1, 3)
+
+    output = _read_stage_positions(fns_xr.data[0, 0, 0, 0, :1])
+    assert output.shape == (1, 3)
+    npt.assert_array_equal(output, [[10025.4, 19885.0, 22985.0]])
+
+
+def test_lazy_load_stage_positions(temp_dir):
+    # 1t-1z-1w-1s-1c
+    root_dir = temp_dir / "direct_transfer" / "3420"
+    files_df = parse_MD_plate_folder(root_dir)
+    fns_xr = create_filename_structure_MD(files_df)
+    positions_xr = lazy_load_stage_positions(fns_xr)
+    assert positions_xr.shape == (1, 1, 1, 1, 1, 3)
+    assert positions_xr.compute().shape == (1, 1, 1, 1, 1, 3)
+    assert positions_xr.dtype == "float64"
+    npt.assert_array_equal(positions_xr, [[[[[[10025.4, 19885.0, 22985.0]]]]]])
+
+
 def test_read_images(temp_dir):
     # 1t-1z-1w-1s-1c
     root_dir = temp_dir / "direct_transfer" / "3420"
@@ -260,21 +287,7 @@ def test_read_images(temp_dir):
     assert all(np.unique(output) == 0)
 
 
-def test_read_stage_positions(temp_dir):
-    # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "direct_transfer" / "3420"
-    files_df = parse_MD_plate_folder(root_dir)
-    fns_xr = create_filename_structure_MD(files_df)
-
-    output = _read_stage_positions(fns_xr.data)
-    assert output.shape == (1, 1, 1, 1, 1, 3)
-
-    output = _read_stage_positions(fns_xr.data[0, 0, 0, 0, :1])
-    assert output.shape == (1, 3)
-    npt.assert_array_equal(output, [[10025.4, 19885.0, 22985.0]])
-
-
-def test_lazy_load_plate_as_xr(temp_dir):
+def test_lazy_load_images(temp_dir):
     # 1t-1z-1w-1s-1c
     root_dir = temp_dir / "direct_transfer" / "3420"
     files_df = parse_MD_plate_folder(root_dir)
@@ -302,13 +315,46 @@ def test_lazy_load_plate_as_xr(temp_dir):
     assert data_xr.compute().shape == (2, 2, 6, 4, 1, 256, 256)
 
 
-def test_lazy_load_stage_positions_as_xr(temp_dir):
-    # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "direct_transfer" / "3420"
-    files_df = parse_MD_plate_folder(root_dir)
-    fns_xr = create_filename_structure_MD(files_df)
-    positions_xr = lazy_load_stage_positions(fns_xr)
-    assert positions_xr.shape == (1, 1, 1, 1, 1, 3)
-    assert positions_xr.compute().shape == (1, 1, 1, 1, 1, 3)
-    assert positions_xr.dtype == "float64"
-    npt.assert_array_equal(positions_xr, [[[[[[10025.4, 19885.0, 22985.0]]]]]])
+def test_lazy_load_plate(temp_dir):
+    expected_dataset_dims = [
+        "well",
+        "field",
+        "time",
+        "channel",
+        "plane",
+        "y",
+        "x",
+        "pos",
+    ]
+
+    root_dir_list = [
+        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420",
+        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3433",
+        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434",
+        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3435",
+        temp_dir / "MetaXpress_all-z_include-projection" / "timeseries",
+        temp_dir / "direct_transfer" / "3420",
+        temp_dir / "direct_transfer" / "3433",
+        temp_dir / "direct_transfer" / "3434",
+        temp_dir / "direct_transfer" / "3435",
+        temp_dir / "direct_transfer" / "timeseries",
+    ]
+
+    for root_dir in root_dir_list:
+        # 1t-1z-1w-1s-1c
+        root_dir = temp_dir / "direct_transfer" / "3420"
+        files_df = parse_MD_plate_folder(root_dir)
+        fns_xr = create_filename_structure_MD(files_df)
+        dataset = lazy_load_plate(fns_xr)
+        assert set(dataset.sizes) == set(expected_dataset_dims)
+        assert dataset.stage_positions.shape[:-1] == dataset.images.shape[:-2]
+        assert (
+            dataset.coords_x.shape
+            == dataset.images.well.shape + dataset.images.field.shape
+        )
+        assert (
+            dataset.coords_y.shape
+            == dataset.images.well.shape + dataset.images.field.shape
+        )
+        assert dataset.coords_z.shape == dataset.images.plane.shape
+        assert dataset.coords_t.shape == dataset.images.time.shape

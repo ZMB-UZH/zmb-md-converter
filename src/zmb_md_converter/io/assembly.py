@@ -136,8 +136,13 @@ def _check_if_channel_contains_timeseries(fns_xr: xr.DataArray, c: int) -> bool:
     # timeseries, but they all have "Timepoint" = 1 in the metadata -> check 2nd file in
     # stack
     metadata = load_metaseries_tiff_metadata(fns_sel[1])
-    if metadata["Timepoint"] == 1:
-        return False
+    try:
+        if metadata["Timepoint"] == 1:
+            return False
+    except KeyError:
+        # if "Timepoint" is not in metadata, but multiple timepoints are present, it is
+        # probably from a tz-folder
+        return True
 
     return True
 
