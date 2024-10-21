@@ -1,7 +1,10 @@
 import itertools
 import os
 
-from zmb_md_converter.convert import convert_md_to_ome_tiffs
+from zmb_md_converter.convert import (
+    convert_md_to_imagej_hyperstacks,
+    convert_md_to_ome_tiffs,
+)
 
 
 def test_convert_md_to_ome_tiffs(temp_dir):
@@ -62,3 +65,26 @@ def test_convert_md_to_ome_tiffs(temp_dir):
                 dimensions_to_split=combination,
                 fill_mixed_acquisition=True,
             )
+
+
+def test_convert_md_to_imagej_hyperstacks(temp_dir):
+    root_dir_list = [
+        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420",
+        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3433",
+        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434",
+        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3435",
+        temp_dir / "MetaXpress_all-z_include-projection" / "timeseries",
+        temp_dir / "direct_transfer" / "3420",
+        temp_dir / "direct_transfer" / "3433",
+        temp_dir / "direct_transfer" / "3434",
+        temp_dir / "direct_transfer" / "3435",
+        temp_dir / "direct_transfer" / "timeseries",
+    ]
+
+    os.makedirs(temp_dir / "output")
+
+    for root_dir in root_dir_list:
+        convert_md_to_imagej_hyperstacks(
+            input_dir=root_dir,
+            output_dir=temp_dir / "output",
+        )
