@@ -3,8 +3,10 @@ from itertools import product
 from pathlib import Path
 from typing import Union
 
+import dask
 import tifffile
 import xarray as xr
+from dask.diagnostics import ProgressBar
 
 from zmb_md_converter.io.assembly import (
     create_filename_structure_MD,
@@ -23,11 +25,14 @@ def _well_output_name(dataset: xr.Dataset) -> str:
     return str(dataset.well.values.item())
 
 
-def _field_output_name(dataset: xr.Dataset) -> str:
+def _field_output_name(dataset: xr.Dataset, legacy_mode: bool = False) -> str:
     if dataset.field.size != 1:
         raise ValueError("Field dimension must have size 1")
     coord_str = dataset.field.values[0]
-    name = f"f{int(coord_str[1:]):03d}"
+    if legacy_mode:
+        name = f"_f_{int(coord_str[1:]):03d}"
+    else:
+        name = f"f{int(coord_str[1:]):03d}"
     return name
 
 
@@ -170,6 +175,29 @@ def save_well_as_ome_tiffs(
 
     split_coords = [dataset.images[dim].values for dim in split]
 
+    # setup delayed execution:
+    @dask.delayed  # type: ignore
+    def _save_tczyx_delayed(
+        dataset_sub: xr.Dataset, out_dir: Union[str, Path], fn_output: str
+    ) -> None:
+        with tifffile.TiffWriter(
+            Path(out_dir) / fn_output, bigtiff=(dataset_sub.images.nbytes >= 2**32)
+        ) as tiffwriter:
+            _write_tczyx(dataset_sub, tiffwriter)
+
+    @dask.delayed  # type: ignore
+    def _save_ftczyx_delayed(
+        dataset_sub: xr.Dataset, out_dir: Union[str, Path], fn_output: str
+    ) -> None:
+        with tifffile.TiffWriter(
+            Path(out_dir) / fn_output, bigtiff=(dataset_sub.images.nbytes >= 2**32)
+        ) as tiffwriter:
+            for field in dataset_sub.field.values:
+                dataset_sub_sub = dataset_sub.sel(field=field)
+                _write_tczyx(dataset_sub_sub, tiffwriter)
+
+    delayed_objects = []
+
     # loop over all combinations of the coordinates to split
     for combination in product(*split_coords):
         dataset_sub = dataset.sel(
@@ -187,18 +215,90 @@ def save_well_as_ome_tiffs(
         if "field" in split:
             # drop 'field' dimension (without loosing the coordinate)
             dataset_sub = dataset_sub.sel(field=dataset_sub.field.values.item())
-            with tifffile.TiffWriter(
-                Path(out_dir) / fn_output, bigtiff=(dataset_sub.images.nbytes >= 2**32)
-            ) as tiffwriter:
-                _write_tczyx(dataset_sub, tiffwriter)
+            delayed_objects.append(_save_tczyx_delayed(dataset_sub, out_dir, fn_output))
         else:
             # special case field: write fields in one file, but as separate series
-            with tifffile.TiffWriter(
-                Path(out_dir) / fn_output, bigtiff=(dataset_sub.images.nbytes >= 2**32)
-            ) as tiffwriter:
-                for field in dataset_sub.field.values:
-                    dataset_sub_sub = dataset_sub.sel(field=field)
-                    _write_tczyx(dataset_sub_sub, tiffwriter)
+            delayed_objects.append(
+                _save_ftczyx_delayed(dataset_sub, out_dir, fn_output)
+            )
+
+    # execute delayed objects
+    with ProgressBar():
+        dask.compute(*delayed_objects)
+
+
+def save_well_as_imagej_tiffs_legacy(
+    dataset: xr.Dataset,
+    out_dir: Union[str, Path],
+) -> None:
+    """
+    Save the dataset from one well as imageJ hyperstacks (splitting fields).
+
+    This is the legacy mode, roughly reproducing the 'MDParallel2Hyperstck_v3'
+    script.
+
+    Args:
+        dataset (xr.Dataset): An xarray dataset containing the images and
+            stage positions to be saved. The images must have (only) the
+            dimensions 'field', 'time', 'channel', 'plane', 'y', 'x'.
+        out_dir (Union[str, Path]): The directory where the .ome.tif stacks
+            will be saved.
+    """
+    expected_dims = ("field", "time", "channel", "plane", "y", "x")
+    if set(expected_dims) != set(dataset.images.dims):
+        raise ValueError(
+            f"Dataset must (only) contain {expected_dims}, "
+            f"but actually contains {dataset.images.dims}."
+        )
+
+    nfields = len(dataset.images["field"].values)
+
+    # setup delayed execution:
+    @dask.delayed  # type: ignore
+    def _save_tzcyx_delayed(
+        dataset_sub: xr.Dataset,
+        out_dir: Union[str, Path],
+        fn_output: str,
+        ome_metadata: dict,
+    ) -> None:
+        tifffile.imwrite(
+            Path(out_dir) / fn_output,
+            dataset_sub.images.data.swapaxes(1, 2),
+            imagej=True,
+            photometric="minisblack",
+            resolution=(
+                1 / ome_metadata["PhysicalSizeX"],
+                1 / ome_metadata["PhysicalSizeY"],
+            ),
+            metadata={
+                "axes": "TZCYX",
+                "spacing": ome_metadata["PhysicalSizeZ"],
+                "unit": "um",
+                "finterval": ome_metadata["TimeIncrement"],
+            },
+        )
+
+    delayed_objects = []
+
+    # loop over all fields
+    for field in dataset.images["field"].values:
+        dataset_sub = dataset.sel(field=[field])
+        fn_output = (
+            f"{_plate_output_name(dataset_sub)}"
+            f"_w_{_well_output_name(dataset_sub)}"
+            f"{_field_output_name(dataset_sub, legacy_mode=True) if nfields>1 else ''}"
+            ".tif"
+        )
+        # drop 'field' dimension (without loosing the coordinate)
+        dataset_sub = dataset_sub.sel(field=dataset_sub.field.values.item())
+        ome_metadata = _get_tczyx_ome_metadata(dataset_sub)
+        delayed_objects.append(
+            _save_tzcyx_delayed(dataset_sub, out_dir, fn_output, ome_metadata)
+        )
+
+    # execute delayed objects
+    with ProgressBar():
+        dask.compute(*delayed_objects)
 
 
 def convert_md_to_ome_tiffs(
@@ -235,6 +335,7 @@ def convert_md_to_ome_tiffs(
             software, but not if the data was moved directly from the
             microscope.
     """
+    print("\nReading plate data structure...")
     files_df = parse_MD_plate_folder(input_dir)
     if files_df is None:
         files_df = parse_MD_tz_folder(input_dir)
@@ -247,6 +348,86 @@ def convert_md_to_ome_tiffs(
     fns_xr = create_filename_structure_MD(files_df, only_2D=only_2D)
     dataset = lazy_load_plate(fns_xr)
 
-    for well in dataset.well.values:
+    print("\nConverting plate:")
+    example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
+    print(
+        f"plate_name: {example_channel_metadata['plate_name']}\n"
+        f"dx: {example_channel_metadata['dx']}"
+        f" {example_channel_metadata['spatial_calibration_units']}\n"
+        f"dy: {example_channel_metadata['dy']}"
+        f" {example_channel_metadata['spatial_calibration_units']}\n"
+        f"dz: {example_channel_metadata['dz']}"
+        f" {example_channel_metadata['spatial_calibration_units']}\n"
+        f"dt: {example_channel_metadata['dt']}"
+        f" {example_channel_metadata['time_calibration_units']}"
+    )
+    print("Dimensions:")
+    print(dict(zip(dataset.images.dims, dataset.images.shape)))
+
+    nwells = len(dataset.well.values)
+    for w, well in enumerate(dataset.well.values):
+        print(f"\nProcessing well {well} ({w+1}/{nwells})")
         well_dataset = dataset.sel(well=well)
         save_well_as_ome_tiffs(well_dataset, output_dir, split=dimensions_to_split)
+
+
+def convert_md_to_imagej_hyperstacks(
+    input_dir: Union[str, Path],
+    output_dir: Union[str, Path],
+) -> None:
+    """
+    Convert MD-data to imagej hyperstacks.
+
+    This is the legacy mode, which mimics the 'MDParallel2Hyperstck_v3' script.
+    Key differences to the 'MDParallel2Hyperstck_v3' script:
+    - Projections will not be saved in the same stack as the rest of the 3D
+    data.
+    - z-spacing will be estimated from the stage-positions, instead of set to
+    5*dx.
+
+    Compared to the 'convert_md_to_ome_tiffs' function, this function will set
+    only_2D=False
+    dimensions_to_split=('field',)
+    fill_mixed_acquisition=False
+
+    Args:
+        input_dir (Union[str, Path]): Path to the top folder of the MD-data.
+            In case of a single plate acquisition: Should contain the
+            'Timepoint_*' folders. In case of a combined time & z-stack
+            measurement: Should contain the different MD-plate folders.
+        output_dir (Union[str, Path]): Path to the output directory where the
+            .tif stacks will be saved.
+    """
+    print("\nReading plate data structure...")
+    files_df = parse_MD_plate_folder(input_dir)
+    if files_df is None:
+        files_df = parse_MD_tz_folder(input_dir)
+    if files_df is None:
+        raise ValueError("No files found in the input directory.")
+
+    files_df = _fill_mixed_acquisitions(files_df)
+
+    fns_xr = create_filename_structure_MD(files_df, only_2D=False)
+    dataset = lazy_load_plate(fns_xr)
+
+    print("\nConverting plate:")
+    example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
+    print(
+        f"plate_name: {example_channel_metadata['plate_name']}\n"
+        f"dx: {example_channel_metadata['dx']}"
+        f" {example_channel_metadata['spatial_calibration_units']}\n"
+        f"dy: {example_channel_metadata['dy']}"
+        f" {example_channel_metadata['spatial_calibration_units']}\n"
+        f"dz: {example_channel_metadata['dz']}"
+        f" {example_channel_metadata['spatial_calibration_units']}\n"
+        f"dt: {example_channel_metadata['dt']}"
+        f" {example_channel_metadata['time_calibration_units']}"
+    )
+    print("Dimensions:")
+    print(dict(zip(dataset.images.dims, dataset.images.shape)))
+
+    nwells = len(dataset.well.values)
+    for w, well in enumerate(dataset.well.values):
+        print(f"\nProcessing well {well} ({w+1}/{nwells})")
+        well_dataset = dataset.sel(well=well)
+        save_well_as_imagej_tiffs_legacy(well_dataset, output_dir)

@@ -34,7 +34,7 @@ classifiers = [
 ]
 # add your package dependencies here
 dependencies = [
-    "faim-ipa==0.6.0",
+    #"faim-ipa==0.6.0",
     "dask",
     "numpy",
     "pandas",
