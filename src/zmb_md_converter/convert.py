@@ -1,3 +1,4 @@
+import time
 from collections.abc import Iterable
 from itertools import product
 from pathlib import Path
@@ -335,7 +336,12 @@ def convert_md_to_ome_tiffs(
             software, but not if the data was moved directly from the
             microscope.
     """
+    print(f"input path: {input_dir}")
+    print(f"output path: {output_dir}")
     print("\nReading plate data structure...")
+
+    t_start = time.time()
+
     files_df = parse_MD_plate_folder(input_dir)
     if files_df is None:
         files_df = parse_MD_tz_folder(input_dir)
@@ -370,6 +376,9 @@ def convert_md_to_ome_tiffs(
         well_dataset = dataset.sel(well=well)
         save_well_as_ome_tiffs(well_dataset, output_dir, split=dimensions_to_split)
 
+    t_end = time.time()
+    print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.\n")
+
 
 def convert_md_to_imagej_hyperstacks(
     input_dir: Union[str, Path],
@@ -398,7 +407,12 @@ def convert_md_to_imagej_hyperstacks(
         output_dir (Union[str, Path]): Path to the output directory where the
             .tif stacks will be saved.
     """
+    print(f"input path: {input_dir}")
+    print(f"output path: {output_dir}")
     print("\nReading plate data structure...")
+
+    t_start = time.time()
+
     files_df = parse_MD_plate_folder(input_dir)
     if files_df is None:
         files_df = parse_MD_tz_folder(input_dir)
@@ -431,3 +445,6 @@ def convert_md_to_imagej_hyperstacks(
         print(f"\nProcessing well {well} ({w+1}/{nwells})")
         well_dataset = dataset.sel(well=well)
         save_well_as_imagej_tiffs_legacy(well_dataset, output_dir)
+
+    t_end = time.time()
+    print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.\n")
