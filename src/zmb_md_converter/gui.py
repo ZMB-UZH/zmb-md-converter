@@ -61,6 +61,9 @@ class GUI:  # noqa: D101
         }
         self.fill_mixed_acquisition = tk.BooleanVar(value=True)
 
+        # Bind the close event to a custom function
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
         self._create_widgets()
 
     def _create_widgets(self):
@@ -279,6 +282,10 @@ class GUI:  # noqa: D101
 
     def run(self):  # noqa: D102
         self.root.mainloop()
+
+    def on_closing(self):  # noqa: D102
+        print("\nexiting...\n")
+        self.root.destroy()
 
 
 if __name__ == "__main__":
