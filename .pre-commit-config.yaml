@@ -21,7 +21,7 @@ repos:
           - --force-exclude  # omitting --write-changes
           - --config
           - typos.toml
-        exclude: legacy/MDParallel2Hyperstack_v3.py
+        exclude: 'legacy/MDParallel2Hyperstack_v3.py|environment.yml'
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.4.8

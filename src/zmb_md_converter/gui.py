@@ -203,7 +203,7 @@ class GUI:  # noqa: D101
                 "(Should work similar to the 'MD2Hyperstack' script.)\n"
                 "\n"
                 "Key differences to original script:\n"
-                "- Projections will not be added to the stacks.\n"
+                "- Projections will not be added to 3D stacks.\n"
                 "- More accurate z-spacing estimation."
                 "\n"
             ),
