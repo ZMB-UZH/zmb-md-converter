@@ -10,8 +10,8 @@ import xarray as xr
 from dask.diagnostics import ProgressBar
 
 from zmb_md_converter.io.assembly import (
-    create_filename_structure_MD,
-    lazy_load_plate,
+    create_well_filename_structure_MD,
+    lazy_load_well,
 )
 from zmb_md_converter.io.parsing import (
     _fill_mixed_acquisitions,
@@ -21,9 +21,8 @@ from zmb_md_converter.io.parsing import (
 
 
 def _well_output_name(dataset: xr.Dataset) -> str:
-    if dataset.well.size != 1:
-        raise ValueError("Well dimension must have size 1")
-    return str(dataset.well.values.item())
+    example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
+    return str(example_channel_metadata["well_name"])
 
 
 def _field_output_name(dataset: xr.Dataset, legacy_mode: bool = False) -> str:
@@ -66,25 +65,11 @@ def _plate_output_name(dataset: xr.Dataset) -> str:
     return str(example_channel_metadata["plate_name"])
 
 
-def _get_dimension_sizes(dataset: xr.Dataset) -> list:
-    """
-    Get dimension sizes of dataset.
-
-    Will return size for "well", "field", "time", "channel", "plane", "y", "x".
-    If a dimension is not present in the dataset, the size will be 1.
-    """
-    all_dims_index = dict(
-        zip(["well", "field", "time", "channel", "plane", "y", "x"], range(7))
-    )
-    dim_sizes = list(range(7))
-    for dim, size in zip(dataset.images.dims, dataset.images.shape):
-        dim_sizes[all_dims_index[dim]] = size
-    return dim_sizes
-
-
 def _get_tczyx_ome_metadata(dataset: xr.Dataset) -> dict:
     """Produce metadata for TCZYX ome-tiff export with tifffile."""
-    nw, nf, nt, nc, nz, ny, nx = _get_dimension_sizes(dataset)
+    nt = dataset.images.sizes["time"]
+    nc = dataset.images.sizes["channel"]
+    nz = dataset.images.sizes["plane"]
     example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
 
     # tifffile seems to require dz to be > 0
@@ -287,7 +272,7 @@ def save_well_as_imagej_tiffs_legacy(
         fn_output = (
             f"{_plate_output_name(dataset_sub)}"
             f"_w_{_well_output_name(dataset_sub)}"
-            f"{_field_output_name(dataset_sub, legacy_mode=True) if nfields>1 else ''}"
+            f"{_field_output_name(dataset_sub, legacy_mode=True) if nfields > 1 else ''}"
             ".tif"
         )
         # drop 'field' dimension (without loosing the coordinate)
@@ -351,30 +336,29 @@ def convert_md_to_ome_tiffs(
     if fill_mixed_acquisition:
         files_df = _fill_mixed_acquisitions(files_df)
 
-    fns_xr = create_filename_structure_MD(files_df, only_2D=only_2D)
-    dataset = lazy_load_plate(fns_xr)
+    print(f"\nConverting plate '{files_df['name'].unique()[0]}'...")
 
-    print("\nConverting plate:")
-    example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
-    print(
-        f"plate_name: {example_channel_metadata['plate_name']}\n"
-        f"dx: {example_channel_metadata['dx']}"
-        f" {example_channel_metadata['spatial_calibration_units']}\n"
-        f"dy: {example_channel_metadata['dy']}"
-        f" {example_channel_metadata['spatial_calibration_units']}\n"
-        f"dz: {example_channel_metadata['dz']}"
-        f" {example_channel_metadata['spatial_calibration_units']}\n"
-        f"dt: {example_channel_metadata['dt']}"
-        f" {example_channel_metadata['time_calibration_units']}"
-    )
-    print("Dimensions:")
-    print(dict(zip(dataset.images.dims, dataset.images.shape)))
+    nwells = len(files_df["well"].unique())
+    for w, well in enumerate(sorted(files_df["well"].unique())):
+        print(f"\nProcessing well {well} ({w + 1}/{nwells})")
+        well_files_df = files_df[files_df["well"] == well]
+        fns_xr = create_well_filename_structure_MD(well_files_df, only_2D=only_2D)
+        dataset = lazy_load_well(fns_xr)
 
-    nwells = len(dataset.well.values)
-    for w, well in enumerate(dataset.well.values):
-        print(f"\nProcessing well {well} ({w+1}/{nwells})")
-        well_dataset = dataset.sel(well=well)
-        save_well_as_ome_tiffs(well_dataset, output_dir, split=dimensions_to_split)
+        example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
+        print(
+            f"dx: {example_channel_metadata['dx']}"
+            f" {example_channel_metadata['spatial_calibration_units']}\t"
+            f"dy: {example_channel_metadata['dy']}"
+            f" {example_channel_metadata['spatial_calibration_units']}\t"
+            f"dz: {example_channel_metadata['dz']}"
+            f" {example_channel_metadata['spatial_calibration_units']}\t"
+            f"dt: {example_channel_metadata['dt']}"
+            f" {example_channel_metadata['time_calibration_units']}"
+        )
+        print(f"Dimensions: {dict(dataset.images.sizes)}")
+
+        save_well_as_ome_tiffs(dataset, output_dir, split=dimensions_to_split)
 
     t_end = time.time()
     print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.\n")
@@ -421,30 +405,29 @@ def convert_md_to_imagej_hyperstacks(
 
     files_df = _fill_mixed_acquisitions(files_df)
 
-    fns_xr = create_filename_structure_MD(files_df, only_2D=False)
-    dataset = lazy_load_plate(fns_xr)
+    print(f"\nConverting plate '{files_df['name'].unique()[0]}'...")
 
-    print("\nConverting plate:")
-    example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
-    print(
-        f"plate_name: {example_channel_metadata['plate_name']}\n"
-        f"dx: {example_channel_metadata['dx']}"
-        f" {example_channel_metadata['spatial_calibration_units']}\n"
-        f"dy: {example_channel_metadata['dy']}"
-        f" {example_channel_metadata['spatial_calibration_units']}\n"
-        f"dz: {example_channel_metadata['dz']}"
-        f" {example_channel_metadata['spatial_calibration_units']}\n"
-        f"dt: {example_channel_metadata['dt']}"
-        f" {example_channel_metadata['time_calibration_units']}"
-    )
-    print("Dimensions:")
-    print(dict(zip(dataset.images.dims, dataset.images.shape)))
+    nwells = len(files_df["well"].unique())
+    for w, well in enumerate(files_df["well"].unique()):
+        print(f"\nProcessing well {well} ({w + 1}/{nwells})")
+        well_files_df = files_df[files_df["well"] == well]
+        fns_xr = create_well_filename_structure_MD(well_files_df, only_2D=False)
+        dataset = lazy_load_well(fns_xr)
 
-    nwells = len(dataset.well.values)
-    for w, well in enumerate(dataset.well.values):
-        print(f"\nProcessing well {well} ({w+1}/{nwells})")
-        well_dataset = dataset.sel(well=well)
-        save_well_as_imagej_tiffs_legacy(well_dataset, output_dir)
+        example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
+        print(
+            f"dx: {example_channel_metadata['dx']}"
+            f" {example_channel_metadata['spatial_calibration_units']}\t"
+            f"dy: {example_channel_metadata['dy']}"
+            f" {example_channel_metadata['spatial_calibration_units']}\t"
+            f"dz: {example_channel_metadata['dz']}"
+            f" {example_channel_metadata['spatial_calibration_units']}\t"
+            f"dt: {example_channel_metadata['dt']}"
+            f" {example_channel_metadata['time_calibration_units']}"
+        )
+        print(f"Dimensions: {dict(dataset.images.sizes)}")
+
+        save_well_as_imagej_tiffs_legacy(dataset, output_dir)
 
     t_end = time.time()
     print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.\n")

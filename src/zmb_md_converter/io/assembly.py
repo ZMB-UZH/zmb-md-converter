@@ -13,20 +13,21 @@ from zmb_md_converter.io.metaseries import (
 )
 
 
-def create_filename_structure_MD(
-    files: pd.DataFrame,
+def create_well_filename_structure_MD(
+    well_files: pd.DataFrame,
     only_2D: bool = False,
 ) -> xr.DataArray:
     """
-    Assemble MD tiff-filenames in an xarray.
+    Assemble MD tiff-filenames of one well in an xarray.
 
-    The array will have the ordering (well,field,time,channel,plane).
+    The array will have the ordering (field,time,channel,plane).
     This allows us to later easily map over the filenames to create a
     dask-array of the images.
 
     Args:
-        files (pd.DataFrame): DataFrame containing the filenames and metadata
+        well_files (pd.DataFrame): DataFrame containing the filenames and metadata
             about well, field, times, etc.
+            Needs to only contain the files of one well!
         only_2D (bool, optional): If True, only the existing 2D data (i.e.
             projections) are used. The 'plane' axis will still be created, but
             with length 1. Defaults to False.
@@ -35,72 +36,77 @@ def create_filename_structure_MD(
         xr.DataArray: An xarray containing the filenames in the correct
             structure.
     """
-    if all(files.z.unique() == [None]):
+    if len(well_files["well"].unique()) > 1:
+        raise ValueError(
+            "The input DataFrame contains files from multiple wells. "
+            "Please filter the DataFrame to only contain files from one well."
+        )
+
+    if all(well_files.z.unique() == [None]):
         only_2D = True
-
     if only_2D:
-        files = files[files.z.isnull()].copy()
-        if files.empty:
+        well_files = well_files[well_files.z.isnull()].copy()
+        if well_files.empty:
             raise ValueError("No projections found.")
-        files.z = "0"
+        well_files.z = "0"
     else:
-        files = files[files.z.notnull()].copy()
+        well_files = well_files[well_files.z.notnull()].copy()
 
-    wells = sorted(files["well"].unique())
+    well = well_files["well"].iloc[0]
     fields = sorted(
-        files["field"].unique(), key=lambda s: int(re.findall(r"(\d+)", s)[0])
+        well_files["field"].unique(), key=lambda s: int(re.findall(r"(\d+)", s)[0])
     )
-    times = sorted(files["time_point"].unique(), key=int)
+    times = sorted(well_files["time_point"].unique(), key=int)
     channels = sorted(
-        files["channel"].unique(), key=lambda s: int(re.findall(r"(\d+)", s)[0])
+        well_files["channel"].unique(), key=lambda s: int(re.findall(r"(\d+)", s)[0])
     )
-    planes = sorted(files["z"].unique(), key=int)
+    planes = sorted(well_files["z"].unique(), key=int)
 
     # Create an empty np array to store the filenames in the correct structure
-    fn_dtype = f"<U{max([len(fn) for fn in files['path']])}"
+    fn_dtype = f"<U{max([len(fn) for fn in well_files['path']])}"
     fns_np = np.zeros(
-        (len(wells), len(fields), len(times), len(channels), len(planes)),
+        (len(fields), len(times), len(channels), len(planes)),
         dtype=fn_dtype,
     )
 
     # Store fns in correct position
-    for w, well in enumerate(wells):
-        well_files = files[files["well"] == well]
-        for s, field in enumerate(fields):
-            field_files = well_files[well_files["field"] == field]
-            for t, time in enumerate(times):
-                time_files = field_files[field_files["time_point"] == time]
-                for c, channel in enumerate(channels):
-                    channel_files = time_files[time_files["channel"] == channel]
-                    for z, plane in enumerate(planes):
-                        plane_files = channel_files[channel_files["z"] == plane]
-                        if len(plane_files) == 1:
-                            fns_np[w, s, t, c, z] = plane_files["path"].values[0]
-                        elif len(plane_files) > 1:
-                            raise RuntimeError(
-                                f"Multiple files found for well {well}, field {field}, "
-                                f"time {time}, channel {channel}, plane {plane}."
-                            )
+    for s, field in enumerate(fields):
+        field_files = well_files[well_files["field"] == field]
+        for t, time in enumerate(times):
+            time_files = field_files[field_files["time_point"] == time]
+            for c, channel in enumerate(channels):
+                channel_files = time_files[time_files["channel"] == channel]
+                for z, plane in enumerate(planes):
+                    plane_files = channel_files[channel_files["z"] == plane]
+                    if len(plane_files) == 1:
+                        fns_np[s, t, c, z] = plane_files["path"].values[0]
+                    elif len(plane_files) > 1:
+                        raise RuntimeError(
+                            f"Multiple files found for well {well}, field {field}, "
+                            f"time {time}, channel {channel}, plane {plane}."
+                        )
 
     # create xarray
     fns_xr = xr.DataArray(
         fns_np,
-        dims=("well", "field", "time", "channel", "plane"),
+        dims=("field", "time", "channel", "plane"),
         coords={
-            "well": wells,
             "field": fields,
             "time": times,
             "channel": channels,
             "plane": planes,
         },
-        attrs={"plate_name": files["name"].values[0]},
+        attrs={
+            "plate_name": well_files["name"].values[0],
+            "well_name": well,
+        },
     )
 
     return fns_xr
 
 
 def _check_if_channel_contains_stack(fns_xr: xr.DataArray, c: int) -> bool:
-    fns_sel = fns_xr.data[0, 0, 0, c]
+    fns_sel = fns_xr.isel(field=0, time=0, channel=c).data
 
     if "" in fns_sel:
         return False
@@ -124,7 +130,7 @@ def _check_if_channel_contains_stack(fns_xr: xr.DataArray, c: int) -> bool:
 
 
 def _check_if_channel_contains_timeseries(fns_xr: xr.DataArray, c: int) -> bool:
-    fns_sel = fns_xr.data[0, 0, :, c, 0]
+    fns_sel = fns_xr.isel(field=0, channel=c, plane=0).data
 
     if "" in fns_sel:
         return False
@@ -151,13 +157,13 @@ def _get_z_spacing(fns_xr: xr.DataArray) -> float:
     """Get approximate dz from first stack."""
     # TODO: maybe calculated from lazy_load_stage_positions
     dz = 0
-    if fns_xr.shape[-1] > 1:
-        for c in range(fns_xr.shape[3]):
+    if fns_xr.sizes["plane"] > 1:
+        for c in range(fns_xr.sizes["channel"]):
             if _check_if_channel_contains_stack(fns_xr, c):
                 z_positions = []
-                for z in range(fns_xr.shape[-1]):
+                for z in range(fns_xr.sizes["plane"]):
                     metadata = load_metaseries_tiff_metadata(
-                        fns_xr.values[0, 0, 0, c, z]
+                        fns_xr.isel(field=0, time=0, channel=c, plane=z).item()
                     )
                     z_positions.append(metadata["stage-position-z"])
                 z_positions_array = np.array(z_positions)
@@ -174,13 +180,13 @@ def _get_t_spacing(fns_xr: xr.DataArray) -> float:
     """Get approximate dt from timeseries."""
     # TODO: maybe calculated from lazy_load_stage_positions (need to include time there)
     dt = 0
-    if fns_xr.shape[2] > 1:
-        for c in range(fns_xr.shape[3]):
+    if fns_xr.sizes["time"] > 1:
+        for c in range(fns_xr.sizes["channel"]):
             if _check_if_channel_contains_timeseries(fns_xr, c):
                 timepoints = []
-                for t in range(fns_xr.shape[2]):
+                for t in range(fns_xr.sizes["time"]):
                     metadata = load_metaseries_tiff_metadata(
-                        fns_xr.values[0, 0, t, c, 0]
+                        fns_xr.isel(field=0, time=t, channel=c, plane=0).item()
                     )
                     timepoints.append(metadata["acquisition-time-local"])
                 timepoints_array = np.array(timepoints)
@@ -203,7 +209,9 @@ def _build_channel_metadata(fns_xr: xr.DataArray) -> dict:
 
     channel_metadata = {}
     for c, channel in enumerate(fns_xr.channel.values):
-        metadata = load_metaseries_tiff_metadata(fns_xr.values[0, 0, 0, c, 0])
+        metadata = load_metaseries_tiff_metadata(
+            fns_xr.isel(field=0, time=0, channel=c, plane=0).item()
+        )
         if "Z Projection Method" in metadata:
             name = (
                 f"{metadata['Z Projection Method'].replace(' ', '-')}-Projection_"
@@ -217,6 +225,7 @@ def _build_channel_metadata(fns_xr: xr.DataArray) -> dict:
         channel_metadata[channel] = {
             # 'channel_index': int(channel[1:]),  # Note: faim-ipa uses -1
             "plate_name": fns_xr.attrs["plate_name"],
+            "well_name": fns_xr.attrs["well_name"],
             "channel_name": name,
             "dx": metadata["spatial-calibration-x"],
             "dy": metadata["spatial-calibration-y"],
@@ -256,7 +265,7 @@ def lazy_load_stage_positions(fns_xr: xr.DataArray) -> xr.DataArray:
             correct structure.
 
     Returns:
-        xr.DataArray: An xarray with shape WFTCZ3 containing the stage
+        xr.DataArray: An xarray with shape FTCZ3 containing the stage
             positions. The data are loaded as a dask array.
     """
     # create dask-array for images by mapping _read_stage_positions over fns_xr
@@ -299,7 +308,7 @@ def lazy_load_images(fns_xr: xr.DataArray) -> xr.DataArray:
             correct structure.
 
     Returns:
-        xr.DataArray: An xarray with shape WFTCZYX containing the images. The
+        xr.DataArray: An xarray with shape FTCZYX containing the images. The
             data are loaded as a dask array.
     """
     # Get the image dimensions and some metadata from the first image
@@ -337,10 +346,9 @@ def lazy_load_images(fns_xr: xr.DataArray) -> xr.DataArray:
     return images_xr
 
 
-# TODO: write tests for this function
-def lazy_load_plate(fns_xr: xr.DataArray) -> xr.Dataset:
+def lazy_load_well(fns_xr: xr.DataArray) -> xr.Dataset:
     """
-    Lazily load the plate data (images & stage postitions & image coordinates).
+    Lazily load the well data (images & stage postitions & image coordinates).
 
     Args:
         fns_xr (xr.DataArray): An xarray containing the filenames in the
@@ -355,26 +363,19 @@ def lazy_load_plate(fns_xr: xr.DataArray) -> xr.Dataset:
     positions_xr = lazy_load_stage_positions(fns_xr)
 
     # compute the x and y coordinates for the stage positions only once per
-    # time, channel, and plane (assume that all are roughly the same)
-    coords_x = (
-        positions_xr.isel(time=0, channel=0, plane=0, drop=True)
-        .sel(pos="pos_x")
-        .compute()
-    )
-    coords_y = (
-        positions_xr.isel(time=0, channel=0, plane=0, drop=True)
-        .sel(pos="pos_y")
-        .compute()
-    )
+    # time, channel, and well (assume that all are roughly the same)
+    stage_coords = positions_xr.isel(time=0, channel=0, plane=0, drop=True).compute()
+    coords_x = stage_coords.sel(pos="pos_x")
+    coords_y = stage_coords.sel(pos="pos_y")
     # compute the z and t coordinates from the estimated dz and dt
     dz = images_xr.attrs[images_xr.coords["channel"].values[0]]["dz"]
     coords_z = xr.DataArray(
-        data=np.array([n * dz for n in range(len(images_xr.coords["plane"]))]),
+        data=np.array([n * dz for n in range(images_xr.sizes["plane"])]),
         coords={"plane": positions_xr.coords["plane"]},
     )
     dt = images_xr.attrs[images_xr.coords["channel"].values[0]]["dt"]
     coords_t = xr.DataArray(
-        data=np.array([n * dt for n in range(len(images_xr.coords["time"]))]),
+        data=np.array([n * dt for n in range(images_xr.sizes["time"])]),
         coords={"time": positions_xr.coords["time"]},
     )
 

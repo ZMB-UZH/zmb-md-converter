@@ -1,6 +1,7 @@
 # type: ignore
 
 import tkinter as tk
+import traceback
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
@@ -125,7 +126,7 @@ class GUI:  # noqa: D101
         # Text field
         ome_tiff_label = tk.Label(
             ome_tiff_frame,
-            text=("Convert MD-data to OME-TIFF stacks.\n\n" "Options:"),
+            text=("Convert MD-data to OME-TIFF stacks.\n\nOptions:"),
             justify=tk.LEFT,
         )
         ome_tiff_label.grid(row=0, column=0, sticky=tk.W)
@@ -257,6 +258,7 @@ class GUI:  # noqa: D101
                 "MD to OME-TIFF conversion completed successfully.",
             )
         except Exception as e:
+            traceback.print_exc()
             messagebox.showerror("Conversion Error", str(e))
 
     def _convert_imagej(self):
