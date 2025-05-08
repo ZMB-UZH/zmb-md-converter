@@ -2,9 +2,10 @@ import time
 from collections.abc import Iterable
 from itertools import product
 from pathlib import Path
-from typing import Union
+from typing import Literal, Union
 
 import dask
+import numpy as np
 import tifffile
 import xarray as xr
 from dask.diagnostics import ProgressBar
@@ -287,15 +288,63 @@ def save_well_as_imagej_tiffs_legacy(
         dask.compute(*delayed_objects)
 
 
-def convert_md_to_ome_tiffs(
+def z_project_dataset(
+    dataset: xr.Dataset, method: Literal["max", "mean"] = "max"
+) -> xr.Dataset:
+    """
+    Z-project the dataset using the specified method.
+
+    Args:
+        dataset (xr.Dataset): The dataset to be z-projected.
+        method (str): The method to use for z-projection. Can be either
+            "max" or "mean".
+
+    Returns:
+        xr.Dataset: The z-projected dataset.
+    """
+    # project images
+    if method == "max":
+        images_xr = dataset.images.max(dim="plane", keepdims=True, keep_attrs=True)
+    elif method == "mean":
+        images_xr = dataset.images.mean(dim="plane", keepdims=True, keep_attrs=True)
+    else:
+        raise ValueError("Method must be either 'max' or 'mean'.")
+
+    # take mean of stage positions along z
+    positions_xr = dataset.stage_positions.mean(
+        dim="plane", keepdims=True, keep_attrs=True
+    )
+
+    # create new coordinate for plane
+    images_xr = images_xr.assign_coords(plane=["0"])
+    positions_xr = positions_xr.assign_coords(plane=["0"])
+
+    # create new stage position coordinate
+    coords_z = xr.DataArray(
+        data=np.array([0]),
+        coords={"plane": positions_xr.coords["plane"]},
+    )
+
+    dataset = xr.Dataset(
+        {images_xr.name: images_xr, positions_xr.name: positions_xr},
+        coords={
+            "coords_z": coords_z,
+        },
+    )
+
+    return dataset
+
+
+def convert_md_to_tiffs(
     input_dir: Union[str, Path],
     output_dir: Union[str, Path],
     only_2D: bool = False,
     dimensions_to_split: Iterable[str] = ("field",),
     fill_mixed_acquisition: bool = True,
+    legacy_mode: bool = False,
 ) -> None:
     """
-    Convert MD-data to .ome.tif stacks.
+    Convert MD-data to TIF stacks.
 
     Args:
         input_dir (Union[str, Path]): Path to the top folder of the MD-data.
@@ -320,7 +369,39 @@ def convert_md_to_ome_tiffs(
             is already done if the data was exported from the MetaXpress
             software, but not if the data was moved directly from the
             microscope.
+        legacy_mode (bool): If True, the function will save the data in a
+            legacy format, which mimics the 'MDParallel2Hyperstck_v3' script.
+            Key differences to the 'MDParallel2Hyperstck_v3' script:
+                - Projections will not be saved in the same stack as the rest
+                of the 3D data.
+                - z-spacing will be estimated from the stage-positions, instead
+                of set to 5*dx.
+            This mode only works with the settings:
+                only_2D=False
+                dimensions_to_split=('field',)
+                fill_mixed_acquisition=False
+
     """
+    if legacy_mode:
+        if only_2D:
+            only_2D = False
+            print(
+                "Legacy mode is not compatible with only_2D=True. "
+                "Setting only_2D=False."
+            )
+        if dimensions_to_split != ("field",):
+            dimensions_to_split = ("field",)
+            print(
+                "Legacy mode is not compatible with dimensions_to_split != ('field',). "
+                "Setting dimensions_to_split=('field',)."
+            )
+        if fill_mixed_acquisition:
+            fill_mixed_acquisition = False
+            print(
+                "Legacy mode is not compatible with fill_mixed_acquisition=True. "
+                "Setting fill_mixed_acquisition=False."
+            )
+
     print(f"input path: {input_dir}")
     print(f"output path: {output_dir}")
     print("\nReading plate data structure...")
@@ -342,8 +423,17 @@ def convert_md_to_ome_tiffs(
     for w, well in enumerate(sorted(files_df["well"].unique())):
         print(f"\nProcessing well {well} ({w + 1}/{nwells})")
         well_files_df = files_df[files_df["well"] == well]
-        fns_xr = create_well_filename_structure_MD(well_files_df, only_2D=only_2D)
-        dataset = lazy_load_well(fns_xr)
+        try:
+            fns_xr = create_well_filename_structure_MD(well_files_df, only_2D=only_2D)
+            dataset = lazy_load_well(fns_xr)
+        except ValueError as e:
+            # if the well has no projection data, create it from the 3D data
+            if "No projections found." in str(e):
+                fns_xr = create_well_filename_structure_MD(well_files_df, only_2D=False)
+                dataset = lazy_load_well(fns_xr)
+                dataset = z_project_dataset(dataset, method="max")
+            else:
+                raise e
 
         example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
         print(
@@ -358,76 +448,10 @@ def convert_md_to_ome_tiffs(
         )
         print(f"Dimensions: {dict(dataset.images.sizes)}")
 
-        save_well_as_ome_tiffs(dataset, output_dir, split=dimensions_to_split)
-
-    t_end = time.time()
-    print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.\n")
-
-
-def convert_md_to_imagej_hyperstacks(
-    input_dir: Union[str, Path],
-    output_dir: Union[str, Path],
-) -> None:
-    """
-    Convert MD-data to imagej hyperstacks.
-
-    This is the legacy mode, which mimics the 'MDParallel2Hyperstck_v3' script.
-    Key differences to the 'MDParallel2Hyperstck_v3' script:
-    - Projections will not be saved in the same stack as the rest of the 3D
-    data.
-    - z-spacing will be estimated from the stage-positions, instead of set to
-    5*dx.
-
-    Compared to the 'convert_md_to_ome_tiffs' function, this function will set
-    only_2D=False
-    dimensions_to_split=('field',)
-    fill_mixed_acquisition=False
-
-    Args:
-        input_dir (Union[str, Path]): Path to the top folder of the MD-data.
-            In case of a single plate acquisition: Should contain the
-            'Timepoint_*' folders. In case of a combined time & z-stack
-            measurement: Should contain the different MD-plate folders.
-        output_dir (Union[str, Path]): Path to the output directory where the
-            .tif stacks will be saved.
-    """
-    print(f"input path: {input_dir}")
-    print(f"output path: {output_dir}")
-    print("\nReading plate data structure...")
-
-    t_start = time.time()
-
-    files_df = parse_MD_plate_folder(input_dir)
-    if files_df is None:
-        files_df = parse_MD_tz_folder(input_dir)
-    if files_df is None:
-        raise ValueError("No files found in the input directory.")
-
-    files_df = _fill_mixed_acquisitions(files_df)
-
-    print(f"\nConverting plate '{files_df['name'].unique()[0]}'...")
-
-    nwells = len(files_df["well"].unique())
-    for w, well in enumerate(files_df["well"].unique()):
-        print(f"\nProcessing well {well} ({w + 1}/{nwells})")
-        well_files_df = files_df[files_df["well"] == well]
-        fns_xr = create_well_filename_structure_MD(well_files_df, only_2D=False)
-        dataset = lazy_load_well(fns_xr)
-
-        example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
-        print(
-            f"dx: {example_channel_metadata['dx']}"
-            f" {example_channel_metadata['spatial_calibration_units']}\t"
-            f"dy: {example_channel_metadata['dy']}"
-            f" {example_channel_metadata['spatial_calibration_units']}\t"
-            f"dz: {example_channel_metadata['dz']}"
-            f" {example_channel_metadata['spatial_calibration_units']}\t"
-            f"dt: {example_channel_metadata['dt']}"
-            f" {example_channel_metadata['time_calibration_units']}"
-        )
-        print(f"Dimensions: {dict(dataset.images.sizes)}")
-
-        save_well_as_imagej_tiffs_legacy(dataset, output_dir)
+        if legacy_mode:
+            save_well_as_imagej_tiffs_legacy(dataset, output_dir)
+        else:
+            save_well_as_ome_tiffs(dataset, output_dir, split=dimensions_to_split)
 
     t_end = time.time()
     print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.\n")

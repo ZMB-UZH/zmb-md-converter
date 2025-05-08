@@ -5,10 +5,7 @@ import traceback
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from zmb_md_converter.convert import (
-    convert_md_to_imagej_hyperstacks,
-    convert_md_to_ome_tiffs,
-)
+from zmb_md_converter.convert import convert_md_to_tiffs
 
 
 class ToolTip:  # noqa: D101
@@ -246,7 +243,7 @@ class GUI:  # noqa: D101
         fill_mixed_acquisition = self.fill_mixed_acquisition.get()
 
         try:
-            convert_md_to_ome_tiffs(
+            convert_md_to_tiffs(
                 input_dir=Path(input_dir),
                 output_dir=Path(output_dir),
                 only_2D=only_2D,
@@ -272,14 +269,20 @@ class GUI:  # noqa: D101
             return
 
         try:
-            convert_md_to_imagej_hyperstacks(
-                input_dir=Path(input_dir), output_dir=Path(output_dir)
+            convert_md_to_tiffs(
+                input_dir=Path(input_dir),
+                output_dir=Path(output_dir),
+                only_2D=False,
+                dimensions_to_split=("field",),
+                fill_mixed_acquisition=False,
+                legacy_mode=True,
             )
             messagebox.showinfo(
                 "Conversion Complete",
                 "MD to ImageJ-hyperstack conversion completed successfully.",
             )
         except Exception as e:
+            traceback.print_exc()
             messagebox.showerror("Conversion Error", str(e))
 
     def run(self):  # noqa: D102
