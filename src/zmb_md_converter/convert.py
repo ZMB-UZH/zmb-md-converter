@@ -429,6 +429,11 @@ def convert_md_to_tiffs(
         except ValueError as e:
             # if the well has no projection data, create it from the 3D data
             if "No projections found." in str(e):
+                print(
+                    "No projections found. "
+                    "Creating max intensity projections from 3D data..."
+                )
+                well_files_df = _fill_mixed_acquisitions(well_files_df)
                 fns_xr = create_well_filename_structure_MD(well_files_df, only_2D=False)
                 dataset = lazy_load_well(fns_xr)
                 dataset = z_project_dataset(dataset, method="max")
