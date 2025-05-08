@@ -1,13 +1,11 @@
 # type: ignore
 
 import tkinter as tk
+import traceback
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from zmb_md_converter.convert import (
-    convert_md_to_imagej_hyperstacks,
-    convert_md_to_ome_tiffs,
-)
+from zmb_md_converter.convert import convert_md_to_tiffs
 
 
 class ToolTip:  # noqa: D101
@@ -125,7 +123,7 @@ class GUI:  # noqa: D101
         # Text field
         ome_tiff_label = tk.Label(
             ome_tiff_frame,
-            text=("Convert MD-data to OME-TIFF stacks.\n\n" "Options:"),
+            text=("Convert MD-data to OME-TIFF stacks.\n\nOptions:"),
             justify=tk.LEFT,
         )
         ome_tiff_label.grid(row=0, column=0, sticky=tk.W)
@@ -245,7 +243,7 @@ class GUI:  # noqa: D101
         fill_mixed_acquisition = self.fill_mixed_acquisition.get()
 
         try:
-            convert_md_to_ome_tiffs(
+            convert_md_to_tiffs(
                 input_dir=Path(input_dir),
                 output_dir=Path(output_dir),
                 only_2D=only_2D,
@@ -257,6 +255,7 @@ class GUI:  # noqa: D101
                 "MD to OME-TIFF conversion completed successfully.",
             )
         except Exception as e:
+            traceback.print_exc()
             messagebox.showerror("Conversion Error", str(e))
 
     def _convert_imagej(self):
@@ -270,14 +269,20 @@ class GUI:  # noqa: D101
             return
 
         try:
-            convert_md_to_imagej_hyperstacks(
-                input_dir=Path(input_dir), output_dir=Path(output_dir)
+            convert_md_to_tiffs(
+                input_dir=Path(input_dir),
+                output_dir=Path(output_dir),
+                only_2D=False,
+                dimensions_to_split=("field",),
+                fill_mixed_acquisition=False,
+                legacy_mode=True,
             )
             messagebox.showinfo(
                 "Conversion Complete",
                 "MD to ImageJ-hyperstack conversion completed successfully.",
             )
         except Exception as e:
+            traceback.print_exc()
             messagebox.showerror("Conversion Error", str(e))
 
     def run(self):  # noqa: D102
