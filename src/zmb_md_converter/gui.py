@@ -130,7 +130,7 @@ class GUI:  # noqa: D101
 
         # Only 2D
         only_2D_checkbox = tk.Checkbutton(
-            ome_tiff_frame, text="Convert only 2D data", variable=self.only_2D
+            ome_tiff_frame, text="Projections only", variable=self.only_2D
         )
         only_2D_checkbox.grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
         ToolTip(
