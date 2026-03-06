@@ -45,12 +45,6 @@ dependencies = [
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 # "extras" (e.g. for `pip install .[test]`)
 [project.optional-dependencies]
-# add dependencies used for testing here
-test = [
-    "pytest",
-    "pytest-cov",
-    "zenodo-get",
-    ]
 # add anything else you like to have in your dev environment here
 dev = [
     "mypy",
@@ -58,6 +52,9 @@ dev = [
     "pre-commit",
     "rich",  # https://github.com/Textualize/rich
     "ruff",
+    "pytest",
+    "pytest-cov",
+    "zenodo-get",
 ]
 
 [project.urls]
@@ -157,3 +154,17 @@ ignore = [
     ".ruff_cache/**/*",
     "tests/**/*",
 ]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[tool.pixi.pypi-dependencies]
+zmb_md_converter = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+# Required Python version and dependencies
+[tool.pixi.tasks]
