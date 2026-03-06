@@ -42,7 +42,7 @@ def create_well_filename_structure_MD(
             "Please filter the DataFrame to only contain files from one well."
         )
 
-    if all(well_files.z.unique() == [None]):
+    if well_files.z.isnull().all():
         only_2D = True
     if only_2D:
         well_files = well_files[well_files.z.isnull()].copy()

@@ -118,22 +118,31 @@ def _fill_mixed_acquisitions(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.copy()
 
-    for c in df.channel.unique():
+    # Capture unique values before modifying the dataframe
+    all_z = df.z.unique()
+    all_channels = df.channel.unique()
+    all_tps = df.time_point.unique()
+    all_tps = np.sort([int(t) for t in all_tps])
+
+    for c in all_channels:
         # HANDLE SLICES
         # case 1: only projection is saved
         # -> fill all z with projection
-        if (df[df.channel == c].z.unique() == [None]).all():
-            sub_df = df[(df.channel == c) & df.z.isna()].copy()
-            for z in df.z.unique():
-                if z is not None:
+        channel_z_unique = df[df.channel == c].z.unique()
+        if len(channel_z_unique) == 1 and pd.isna(channel_z_unique[0]):
+            base_df = df[(df.channel == c) & df.z.isna()].copy()
+            for z in all_z:
+                if pd.notna(z):
+                    sub_df = base_df.copy()
                     sub_df.z = z
                     df = pd.concat([df, sub_df], ignore_index=True)
         # case 2: only one z is saved
         # -> fill all z with that slice
-        if (df[df.channel == c].z.unique() == ["1"]).all():
-            sub_df = df[(df.channel == c) & (df.z == "1")].copy()
-            for z in df.z.unique():
+        elif len(channel_z_unique) == 1 and channel_z_unique[0] == "1":
+            base_df = df[(df.channel == c) & (df.z == "1")].copy()
+            for z in all_z:
                 if z != "1":
+                    sub_df = base_df.copy()
                     sub_df.z = z
                     df = pd.concat([df, sub_df], ignore_index=True)
 
@@ -144,8 +153,6 @@ def _fill_mixed_acquisitions(df: pd.DataFrame) -> pd.DataFrame:
         # -> fill remaining timepoints with first timepoint
         # case 3: only every nth timepoint is saved
         # -> fill remaining timepoints with latest timepoint
-        all_tps = df.time_point.unique()
-        all_tps = np.sort([int(t) for t in all_tps])
         if len(df[df.channel == c].time_point.unique()) != len(all_tps):
             if str(all_tps[0]) not in df[df.channel == c].time_point.unique():
                 raise ValueError(f"First timepoint is missing for channel {c}")
@@ -153,6 +160,7 @@ def _fill_mixed_acquisitions(df: pd.DataFrame) -> pd.DataFrame:
                 if str(tp) in df[df.channel == c].time_point.unique():
                     sub_df = df[(df.channel == c) & (df.time_point == str(tp))].copy()
                 else:
-                    sub_df.time_point = str(tp)
-                    df = pd.concat([df, sub_df], ignore_index=True)
+                    new_sub_df = sub_df.copy()
+                    new_sub_df.time_point = str(tp)
+                    df = pd.concat([df, new_sub_df], ignore_index=True)
     return df

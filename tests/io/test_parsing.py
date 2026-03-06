@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import numpy.testing as npt
 import pytest
 
@@ -9,6 +10,14 @@ from zmb_md_converter.io.parsing import (
     parse_MD_plate_folder,
     parse_MD_tz_folder,
 )
+
+
+def assert_unique_equal(actual, expected):
+    """Compare unique values treating None and np.nan as equivalent."""
+    import pandas as pd
+    actual_set = {None if pd.isna(x) else x for x in actual}
+    expected_set = {None if pd.isna(x) else x for x in expected}
+    assert actual_set == expected_set, f"Expected {expected_set}, got {actual_set}"
 
 
 @pytest.mark.parametrize(
@@ -73,7 +82,7 @@ def test_parse_MD_plate_folder_directTransfer(temp_dir):
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 1
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
-    npt.assert_array_equal(df["z"].unique(), [None])
+    assert_unique_equal(df["z"].unique(), [None])
     npt.assert_array_equal(df["name"].unique(), ["9987"])
     npt.assert_array_equal(df["well"].unique(), ["B02"])
     npt.assert_array_equal(df["field"].unique(), ["s1"])
@@ -86,7 +95,7 @@ def test_parse_MD_plate_folder_directTransfer(temp_dir):
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 32
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
-    npt.assert_array_equal(df["z"].unique(), [None, "1", "2", "3"])
+    assert_unique_equal(df["z"].unique(), [None, "1", "2", "3"])
     npt.assert_array_equal(df["name"].unique(), ["9987"])
     npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
     npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
@@ -99,18 +108,18 @@ def test_parse_MD_plate_folder_directTransfer(temp_dir):
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 28
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
-    npt.assert_array_equal(df["z"].unique(), [None, "1", "2", "3"])
+    assert_unique_equal(df["z"].unique(), [None, "1", "2", "3"])
     npt.assert_array_equal(df["name"].unique(), ["9987"])
     npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
     npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
     npt.assert_array_equal(df["channel"].unique(), ["w1", "w2", "w3", "w4"])
     npt.assert_array_equal(df["dir_name"].unique(), ["3434"])
     # all z-planes:
-    npt.assert_array_equal(
+    assert_unique_equal(
         df.query("channel=='w1'")["z"].unique(), [None, "1", "2", "3"]
     )
     # only projection:
-    npt.assert_array_equal(df.query("channel=='w2'")["z"].unique(), [None])
+    assert_unique_equal(df.query("channel=='w2'")["z"].unique(), [None])
     # only 1 plane (0um offset):
     npt.assert_array_equal(df.query("channel=='w3'")["z"].unique(), ["1"])
     # only 1 plane (10um offset):
@@ -122,7 +131,7 @@ def test_parse_MD_plate_folder_directTransfer(temp_dir):
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 44
     npt.assert_array_equal(df["time_point"].unique(), ["1", "2", "3", "4", "5", "6"])
-    npt.assert_array_equal(df["z"].unique(), [None])
+    assert_unique_equal(df["z"].unique(), [None])
     npt.assert_array_equal(df["name"].unique(), ["9987"])
     npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
     npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
@@ -152,7 +161,7 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 1
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
-    npt.assert_array_equal(df["z"].unique(), [None])
+    assert_unique_equal(df["z"].unique(), [None])
     npt.assert_array_equal(df["name"].unique(), ["9987"])
     npt.assert_array_equal(df["well"].unique(), ["B02"])
     npt.assert_array_equal(df["field"].unique(), ["s1"])
@@ -165,7 +174,7 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 32
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
-    npt.assert_array_equal(df["z"].unique(), [None, "1", "2", "3"])
+    assert_unique_equal(df["z"].unique(), [None, "1", "2", "3"])
     npt.assert_array_equal(df["name"].unique(), ["9987"])
     npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
     npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
@@ -178,26 +187,26 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 64
     npt.assert_array_equal(df["time_point"].unique(), ["1"])
-    npt.assert_array_equal(df["z"].unique(), [None, "1", "2", "3"])
+    assert_unique_equal(df["z"].unique(), [None, "1", "2", "3"])
     npt.assert_array_equal(df["name"].unique(), ["9987"])
     npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
     npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
     npt.assert_array_equal(df["channel"].unique(), ["w1", "w2", "w3", "w4"])
     npt.assert_array_equal(df["dir_name"].unique(), ["9987_Plate_3434"])
     # all z-planes:
-    npt.assert_array_equal(
+    assert_unique_equal(
         df.query("channel=='w1'")["z"].unique(), [None, "1", "2", "3"]
     )
     # only projection:
-    npt.assert_array_equal(
+    assert_unique_equal(
         df.query("channel=='w2'")["z"].unique(), [None, "1", "2", "3"]
     )
     # only 1 plane (0um offset):
-    npt.assert_array_equal(
+    assert_unique_equal(
         df.query("channel=='w3'")["z"].unique(), [None, "1", "2", "3"]
     )
     # only 1 plane (10um offset):
-    npt.assert_array_equal(
+    assert_unique_equal(
         df.query("channel=='w4'")["z"].unique(), [None, "1", "2", "3"]
     )
 
@@ -207,7 +216,7 @@ def test_parse_MD_plate_folder_MetaXpress(temp_dir):
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 96
     npt.assert_array_equal(df["time_point"].unique(), ["1", "2", "3", "4", "5", "6"])
-    npt.assert_array_equal(df["z"].unique(), [None])
+    assert_unique_equal(df["z"].unique(), [None])
     npt.assert_array_equal(df["name"].unique(), ["9987"])
     npt.assert_array_equal(df["well"].unique(), ["B02", "B03"])
     npt.assert_array_equal(df["field"].unique(), ["s1", "s2"])
