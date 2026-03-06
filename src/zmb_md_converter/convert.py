@@ -10,11 +10,11 @@ import tifffile
 import xarray as xr
 from dask.diagnostics import ProgressBar
 
-from zmb_md_converter.io.assembly import (
+from zmb_md_converter.io.ht_ai.assembly import (
     create_well_filename_structure_MD,
     lazy_load_well,
 )
-from zmb_md_converter.io.parsing import (
+from zmb_md_converter.io.ht_ai.parsing import (
     _fill_mixed_acquisitions,
     parse_MD_plate_folder,
     parse_MD_tz_folder,
