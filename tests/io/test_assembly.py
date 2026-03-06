@@ -5,7 +5,7 @@ import numpy.testing as npt
 import pandas as pd
 import pytest
 
-from zmb_md_converter.io.assembly import (
+from zmb_md_converter.io.ht_ai.assembly import (
     _build_channel_metadata,
     _check_if_channel_contains_stack,
     _check_if_channel_contains_timeseries,
@@ -18,7 +18,7 @@ from zmb_md_converter.io.assembly import (
     lazy_load_stage_positions,
     lazy_load_well,
 )
-from zmb_md_converter.io.parsing import parse_MD_plate_folder, parse_MD_tz_folder
+from zmb_md_converter.io.ht_ai.parsing import parse_MD_plate_folder, parse_MD_tz_folder
 
 
 def test_create_well_filename_structure_MD(temp_dir):
