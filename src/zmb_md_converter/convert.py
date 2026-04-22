@@ -429,46 +429,61 @@ def convert_ht_ai_to_tiffs(
     print(f"\nConverting plate '{files_df['name'].unique()[0]}'...")
 
     nwells = len(files_df["well"].unique())
+    failed_wells: list[tuple[str, Exception]] = []
     for w, well in enumerate(sorted(files_df["well"].unique())):
         print(f"\nProcessing well {well} ({w + 1}/{nwells})")
         well_files_df = files_df[files_df["well"] == well]
         try:
-            fns_xr = create_well_filename_structure_MD(well_files_df, only_2D=only_2D)
-            dataset = lazy_load_well(fns_xr)
-        except ValueError as e:
-            # if the well has no projection data, create it from the 3D data
-            if "No projections found." in str(e):
-                print(
-                    "No projections found. "
-                    "Creating max intensity projections from 3D data..."
+            try:
+                fns_xr = create_well_filename_structure_MD(
+                    well_files_df, only_2D=only_2D
                 )
-                well_files_df = _fill_mixed_acquisitions(well_files_df)
-                fns_xr = create_well_filename_structure_MD(well_files_df, only_2D=False)
                 dataset = lazy_load_well(fns_xr)
-                dataset = z_project_dataset(dataset, method="max")
+            except ValueError as e:
+                # if the well has no projection data, create it from the 3D data
+                if "No projections found." in str(e):
+                    print(
+                        "No projections found. "
+                        "Creating max intensity projections from 3D data..."
+                    )
+                    well_files_df = _fill_mixed_acquisitions(well_files_df)
+                    fns_xr = create_well_filename_structure_MD(
+                        well_files_df, only_2D=False
+                    )
+                    dataset = lazy_load_well(fns_xr)
+                    dataset = z_project_dataset(dataset, method="max")
+                else:
+                    raise
+
+            example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
+            print(
+                f"dx: {example_channel_metadata['dx']}"
+                f" {example_channel_metadata['spatial_calibration_units']}\t"
+                f"dy: {example_channel_metadata['dy']}"
+                f" {example_channel_metadata['spatial_calibration_units']}\t"
+                f"dz: {example_channel_metadata['dz']}"
+                f" {example_channel_metadata['spatial_calibration_units']}\t"
+                f"dt: {example_channel_metadata['dt']}"
+                f" {example_channel_metadata['time_calibration_units']}"
+            )
+            print(f"Dimensions: {dict(dataset.images.sizes)}")
+
+            if legacy_mode:
+                save_well_as_imagej_tiffs_legacy(dataset, output_dir)
             else:
-                raise e
-
-        example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
-        print(
-            f"dx: {example_channel_metadata['dx']}"
-            f" {example_channel_metadata['spatial_calibration_units']}\t"
-            f"dy: {example_channel_metadata['dy']}"
-            f" {example_channel_metadata['spatial_calibration_units']}\t"
-            f"dz: {example_channel_metadata['dz']}"
-            f" {example_channel_metadata['spatial_calibration_units']}\t"
-            f"dt: {example_channel_metadata['dt']}"
-            f" {example_channel_metadata['time_calibration_units']}"
-        )
-        print(f"Dimensions: {dict(dataset.images.sizes)}")
-
-        if legacy_mode:
-            save_well_as_imagej_tiffs_legacy(dataset, output_dir)
-        else:
-            save_well_as_ome_tiffs(dataset, output_dir, split=dimensions_to_split)
+                save_well_as_ome_tiffs(dataset, output_dir, split=dimensions_to_split)
+        except Exception as e:
+            print(f"  ERROR processing well {well}: {e}")
+            failed_wells.append((well, e))
 
     t_end = time.time()
-    print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.\n")
+    print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.")
+    if failed_wells:
+        summary = ", ".join(f"{w}: {e}" for w, e in failed_wells)
+        raise RuntimeError(
+            f"{len(failed_wells)}/{nwells} well(s) failed conversion: {summary}"
+        )
+    print()
 
 
 def convert_hcs_ai_to_tiffs(
@@ -545,49 +560,59 @@ def convert_hcs_ai_to_tiffs(
     print(f"\nConverting plate '{files_df['name'].unique()[0]}'...")
 
     nwells = len(files_df["well"].unique())
+    failed_wells: list[tuple[str, Exception]] = []
     for w, well in enumerate(sorted(files_df["well"].unique())):
         print(f"\nProcessing well {well} ({w + 1}/{nwells})")
         well_files_df = files_df[files_df["well"] == well]
-
-        needs_projection = False
         try:
-            fns_xr = create_well_filename_structure_MD_hcs_ai(
-                well_files_df, only_2D=only_2D
-            )
-        except ValueError as e:
-            if "No projections found." in str(e) and only_2D:
-                # Cases: data is 3D (z-stack or montage z-stack) but projections
-                # were requested → load the stack and compute them.
-                print(
-                    "No pre-calculated projections found. "
-                    "Calculating max-intensity projections from 3D data..."
-                )
+            needs_projection = False
+            try:
                 fns_xr = create_well_filename_structure_MD_hcs_ai(
-                    well_files_df, only_2D=False
+                    well_files_df, only_2D=only_2D
                 )
-                needs_projection = True
-            else:
-                raise
+            except ValueError as e:
+                if "No projections found." in str(e) and only_2D:
+                    # Cases: data is 3D (z-stack or montage z-stack) but projections
+                    # were requested → load the stack and compute them.
+                    print(
+                        "No pre-calculated projections found. "
+                        "Calculating max-intensity projections from 3D data..."
+                    )
+                    fns_xr = create_well_filename_structure_MD_hcs_ai(
+                        well_files_df, only_2D=False
+                    )
+                    needs_projection = True
+                else:
+                    raise
 
-        dataset = lazy_load_well_hcs_ai(fns_xr)
+            dataset = lazy_load_well_hcs_ai(fns_xr)
 
-        if needs_projection:
-            dataset = z_project_dataset(dataset, method="max")
+            if needs_projection:
+                dataset = z_project_dataset(dataset, method="max")
 
-        example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
-        print(
-            f"dx: {example_channel_metadata['dx']}"
-            f" {example_channel_metadata['spatial_calibration_units']}\t"
-            f"dy: {example_channel_metadata['dy']}"
-            f" {example_channel_metadata['spatial_calibration_units']}\t"
-            f"dz: {example_channel_metadata['dz']}"
-            f" {example_channel_metadata['spatial_calibration_units']}\t"
-            f"dt: {example_channel_metadata['dt']}"
-            f" {example_channel_metadata['time_calibration_units']}"
-        )
-        print(f"Dimensions: {dict(dataset.images.sizes)}")
+            example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
+            print(
+                f"dx: {example_channel_metadata['dx']}"
+                f" {example_channel_metadata['spatial_calibration_units']}\t"
+                f"dy: {example_channel_metadata['dy']}"
+                f" {example_channel_metadata['spatial_calibration_units']}\t"
+                f"dz: {example_channel_metadata['dz']}"
+                f" {example_channel_metadata['spatial_calibration_units']}\t"
+                f"dt: {example_channel_metadata['dt']}"
+                f" {example_channel_metadata['time_calibration_units']}"
+            )
+            print(f"Dimensions: {dict(dataset.images.sizes)}")
 
-        save_well_as_ome_tiffs(dataset, output_dir, split=dimensions_to_split)
+            save_well_as_ome_tiffs(dataset, output_dir, split=dimensions_to_split)
+        except Exception as e:
+            print(f"  ERROR processing well {well}: {e}")
+            failed_wells.append((well, e))
 
     t_end = time.time()
-    print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.\n")
+    print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.")
+    if failed_wells:
+        summary = ", ".join(f"{w}: {e}" for w, e in failed_wells)
+        raise RuntimeError(
+            f"{len(failed_wells)}/{nwells} well(s) failed conversion: {summary}"
+        )
+    print()
