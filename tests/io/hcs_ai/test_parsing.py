@@ -10,7 +10,8 @@ from zmb_md_converter.io.hcs_ai.parsing import (
 
 @pytest.fixture(scope="module")
 def data_dir(hcs_ai_temp_dir):
-    """Montage z-stack dataset: experiment/, experiment_z_stack/, experiment_montage/."""
+    """Montage z-stack dataset:
+    experiment/, experiment_z_stack/, experiment_montage/."""
     return (
         hcs_ai_temp_dir
         / "1w4s1t1c4z_binning4x4_tiled-L_montage-stitch-zstack"
@@ -20,7 +21,8 @@ def data_dir(hcs_ai_temp_dir):
 
 @pytest.fixture(scope="module")
 def data_dir_stack_only(hcs_ai_temp_dir):
-    """Stack-only dataset: experiment_z_stack/ only, no experiment/ projection folder."""
+    """Stack-only dataset:
+    experiment_z_stack/ only, no experiment/ projection folder."""
     return (
         hcs_ai_temp_dir
         / "1w1s1t2c4z_binning4x4_stack-only"
@@ -32,9 +34,7 @@ def data_dir_stack_only(hcs_ai_temp_dir):
 def data_dir_mip_only(hcs_ai_temp_dir):
     """MIP-only dataset: experiment/ only, no z-stack."""
     return (
-        hcs_ai_temp_dir
-        / "1w1s1t2c4z_binning4x4_MIP-only"
-        / "test_data_20260302_141908"
+        hcs_ai_temp_dir / "1w1s1t2c4z_binning4x4_MIP-only" / "test_data_20260302_141908"
     )
 
 
@@ -62,8 +62,17 @@ def test_parse_MD_plate_folder_returns_dataframe(data_dir):
     assert df is not None
     assert isinstance(df, pd.DataFrame)
     expected_cols = {
-        "name", "well", "field", "channel", "time_point", "z", "path",
-        "dx", "dy", "dz", "dt",
+        "name",
+        "well",
+        "field",
+        "channel",
+        "time_point",
+        "z",
+        "path",
+        "dx",
+        "dy",
+        "dz",
+        "dt",
     }
     assert expected_cols.issubset(set(df.columns))
 
@@ -125,7 +134,8 @@ def test_parse_MD_plate_folder_use_montage_not_available_falls_back(
 def test_parse_MD_plate_folder_only_2D_with_montage_not_available_falls_back(
     data_dir_stack_only, capsys
 ):
-    """When montage and experiment/ are absent, falls back to z-stack (projections computed downstream)."""
+    """When montage and experiment/ are absent, falls back to z-stack (projections
+    computed downstream)."""
     df = parse_MD_plate_folder(data_dir_stack_only, only_2D=True, use_montage=True)
 
     assert df is not None

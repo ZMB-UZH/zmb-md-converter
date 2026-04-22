@@ -46,7 +46,7 @@ def test_convert_hcs_ai_3d(hcs_ai_temp_dir, tmp_path):
         dimensions_to_split=("field",),
     )
     results = _read_output_tiffs(tmp_path)
-    # 1 well × 1 field = 1 output file
+    # 1 well x 1 field = 1 output file
     assert len(results) == 1
     _path, axes, shape = results[0]
     assert _z_size(axes, shape) == 4  # Z = 4 planes
@@ -108,12 +108,8 @@ def test_convert_hcs_ai_2d_from_stack_fallback(hcs_ai_temp_dir, tmp_path):
 
 
 def test_convert_hcs_ai_multi_well(hcs_ai_temp_dir, tmp_path):
-    """Two wells × four fields → eight output files."""
-    data_dir = (
-        hcs_ai_temp_dir
-        / "2w4s3t2c4z_binning4x4"
-        / "test_data_20260302_143452"
-    )
+    """Two wells x four fields → eight output files."""
+    data_dir = hcs_ai_temp_dir / "2w4s3t2c4z_binning4x4" / "test_data_20260302_143452"
     convert_hcs_ai_to_tiffs(
         data_dir,
         tmp_path,
@@ -122,7 +118,7 @@ def test_convert_hcs_ai_multi_well(hcs_ai_temp_dir, tmp_path):
         dimensions_to_split=("field",),
     )
     results = _read_output_tiffs(tmp_path)
-    assert len(results) == 8  # 2 wells × 4 fields
+    assert len(results) == 8  # 2 wells x 4 fields
 
 
 # ---------------------------------------------------------------------------

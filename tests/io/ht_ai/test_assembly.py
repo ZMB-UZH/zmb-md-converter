@@ -110,7 +110,9 @@ def test_create_well_filename_structure_MD(ht_ai_temp_dir):
 
     # MD export
     # 1t-1z-1w-1s-1c
-    root_dir = ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420"
+    root_dir = (
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420"
+    )
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -141,7 +143,9 @@ def test_check_if_channel_contains_stack(ht_ai_temp_dir):
     assert not _check_if_channel_contains_stack(fns_xr, 2)
 
     # 1t-3z-2w-2s-4c mixed z-sampliing
-    root_dir = ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434"
+    root_dir = (
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434"
+    )
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -170,7 +174,9 @@ def test_check_if_channel_contains_timeseries(ht_ai_temp_dir):
     assert not _check_if_channel_contains_timeseries(fns_xr, 3)
 
     # 6t-1z-2w-2s-4c mixed time-sampling
-    root_dir = ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3435"
+    root_dir = (
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3435"
+    )
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)

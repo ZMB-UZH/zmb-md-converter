@@ -56,8 +56,17 @@ def test_fns_xr_attrs_contain_metadata(fns_xr):
 
 def test_channel_metadata_keys(fns_xr):
     ch_meta = fns_xr.attrs["channel_metadata"]
-    expected = {"plate_name", "well_name", "channel_name", "dx", "dy", "dz", "dt",
-                "spatial_calibration_units", "time_calibration_units"}
+    expected = {
+        "plate_name",
+        "well_name",
+        "channel_name",
+        "dx",
+        "dy",
+        "dz",
+        "dt",
+        "spatial_calibration_units",
+        "time_calibration_units",
+    }
     for meta in ch_meta.values():
         assert expected.issubset(set(meta.keys()))
 
