@@ -172,6 +172,28 @@ def _load_experiment_dir(experiment_dir: Path, is_projection: bool) -> pd.DataFr
     return _parse_experiment_dir(experiment_dir, jdce_meta, is_projection=is_projection)
 
 
+def _select_stack_source(
+    root_dir: Path,
+    z_stack_dir: Optional[Path],
+    montage_dir: Optional[Path],
+    use_montage: bool,
+) -> Optional[Path]:
+    """Return the preferred 3D source folder, or None if no z-stack is available.
+
+    When ``use_montage`` is True, prefers ``experiment_montage/``.  Falls back
+    to ``experiment_z_stack/`` with a printed note when the montage folder is
+    absent.
+    """
+    if use_montage:
+        if montage_dir is not None:
+            return montage_dir
+        print(
+            f"Note: No 'experiment_montage' folder found in {root_dir}. "
+            "Falling back to the regular z-stack."
+        )
+    return z_stack_dir  # may be None when no z-stack was acquired
+
+
 def parse_MD_plate_folder(
     root_dir: Union[Path, str],
     only_2D: bool = False,
@@ -233,69 +255,47 @@ def parse_MD_plate_folder(
 
     if only_2D:
         if use_montage and montage_dir is not None:
-            # Keep montage data as stored (often z-stack) so projections can
-            # be generated from stitched images later in the pipeline.
+            # Load montage as-is (may be 3D); projections computed downstream.
             df = _load_experiment_dir(montage_dir, is_projection=False)
-            if not df.empty:
-                dfs.append(df)
         else:
-            if use_montage and montage_dir is None:
+            if use_montage:
                 print(
                     f"Note: No 'experiment_montage' folder found in {root_dir}. "
                     "Falling back to regular projections."
                 )
             if proj_dir is not None:
                 df = _load_experiment_dir(proj_dir, is_projection=True)
-                if not df.empty:
-                    dfs.append(df)
             elif z_stack_dir is not None:
                 print(
                     f"Note: No 'experiment' folder found in {root_dir}. "
                     "Falling back to z-stack; projections will be computed downstream."
                 )
                 df = _load_experiment_dir(z_stack_dir, is_projection=False)
-                if not df.empty:
-                    dfs.append(df)
             else:
                 raise FileNotFoundError(
-                    f"No 'experiment' or 'experiment_z_stack' folder found in {root_dir}. "
-                    "Cannot load 2D data."
+                    f"No 'experiment' or 'experiment_z_stack' folder found in "
+                    f"{root_dir}. Cannot load 2D data."
                 )
+        if not df.empty:
+            dfs.append(df)
 
     else:
-        # Select which folder provides the 3D (or fallback) data
-        if use_montage:
-            if montage_dir is None:
-                print(
-                    f"Note: No 'experiment_montage' folder found in {root_dir}. "
-                    "Falling back to the regular z-stack."
-                )
-                stack_source = z_stack_dir
-            else:
-                stack_source = montage_dir
-        elif z_stack_dir is not None:
-            stack_source = z_stack_dir
-        else:
-            # No z-stack at all: fall back to experiment/ as single-plane data
-            stack_source = None
-
+        stack_source = _select_stack_source(
+            root_dir, z_stack_dir, montage_dir, use_montage
+        )
         if stack_source is not None:
             df = _load_experiment_dir(stack_source, is_projection=False)
             if not df.empty:
                 dfs.append(df)
-            # Also include projections when a dedicated z-stack folder exists
+            # Also include projections when a z-stack folder exists.
             if proj_dir is not None:
                 df_proj = _load_experiment_dir(proj_dir, is_projection=True)
                 if not df_proj.empty:
                     dfs.append(df_proj)
-        else:
-            # Only experiment/ available (single-plane): treat as projection
-            if proj_dir is not None:
-                df = _load_experiment_dir(proj_dir, is_projection=True)
-                if not df.empty:
-                    dfs.append(df)
+        elif proj_dir is not None:
+            # No z-stack at all: load experiment/ as single-plane data.
+            df = _load_experiment_dir(proj_dir, is_projection=True)
+            if not df.empty:
+                dfs.append(df)
 
-    if not dfs:
-        return None
-
-    return pd.concat(dfs, ignore_index=True)
+    return pd.concat(dfs, ignore_index=True) if dfs else None
