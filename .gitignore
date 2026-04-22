@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Test data (downloaded from Zenodo)
+tests/data/
+
 # C extensions
 *.so
 

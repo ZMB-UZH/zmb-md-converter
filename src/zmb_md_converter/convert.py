@@ -19,6 +19,13 @@ from zmb_md_converter.io.ht_ai.parsing import (
     parse_MD_plate_folder,
     parse_MD_tz_folder,
 )
+from zmb_md_converter.io.hcs_ai.assembly import (
+    create_well_filename_structure_MD as create_well_filename_structure_MD_hcs_ai,
+    lazy_load_well as lazy_load_well_hcs_ai,
+)
+from zmb_md_converter.io.hcs_ai.parsing import (
+    parse_MD_plate_folder as parse_MD_plate_folder_hcs_ai,
+)
 
 
 def _well_output_name(dataset: xr.Dataset) -> str:
@@ -335,7 +342,7 @@ def z_project_dataset(
     return dataset
 
 
-def convert_md_to_tiffs(
+def convert_ht_ai_to_tiffs(
     input_dir: Union[str, Path],
     output_dir: Union[str, Path],
     only_2D: bool = False,
@@ -457,6 +464,128 @@ def convert_md_to_tiffs(
             save_well_as_imagej_tiffs_legacy(dataset, output_dir)
         else:
             save_well_as_ome_tiffs(dataset, output_dir, split=dimensions_to_split)
+
+    t_end = time.time()
+    print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.\n")
+
+
+def convert_hcs_ai_to_tiffs(
+    input_dir: Union[str, Path],
+    output_dir: Union[str, Path],
+    only_2D: bool = False,
+    use_montage: bool = True,
+    dimensions_to_split: Iterable[str] = ("field",),
+) -> None:
+    """
+    Convert MD ImageXpress HCS.ai data to OME-TIFF stacks.
+
+    Args:
+        input_dir: Path to the HCS.ai acquisition folder (the one containing
+            the .mxprotocol file).
+        output_dir: Path to the output directory where the .ome.tif stacks
+            will be saved.
+        only_2D: If True, save 2D projections rather than 3D stacks.  When
+            no pre-calculated projections are available, max-intensity
+            projections are computed automatically from the 3D data.
+        use_montage: If True (default), prefer stitched images from
+            ``experiment_montage/`` over the per-tile data.  When the montage
+            is a z-stack and ``only_2D=True``, projections are calculated
+            from the stitched stack.
+        dimensions_to_split: Dimensions along which to split into separate
+            output files.  Must be a subset of
+            ('field', 'time', 'channel', 'plane').
+
+    Fallback behaviour
+    ------------------
+    - ``only_2D=False, use_montage=False``, no z-stack present
+      → returns 2D projection data automatically.
+    - ``only_2D=True, use_montage=False``, only z-stack present
+      → loads z-stack and computes max-intensity projections.
+    - ``only_2D=False, use_montage=True``, montage is a single projection
+      → returns the 2D montage image.
+    - ``only_2D=True, use_montage=True``, montage is a z-stack
+      → loads the stitched stack and computes max-intensity projections.
+    """
+    input_dir = Path(input_dir)
+    output_dir = Path(output_dir)
+
+    print(f"input path: {input_dir}")
+    print(f"output path: {output_dir}")
+    print("\nReading plate data structure...")
+
+    t_start = time.time()
+
+    # --- Parse with fallback for missing-folder cases ---
+    try:
+        files_df = parse_MD_plate_folder_hcs_ai(
+            input_dir, only_2D=only_2D, use_montage=use_montage
+        )
+    except FileNotFoundError:
+        if only_2D and not use_montage:
+            # Case: only_2D=True but no experiment/ folder (only z-stack exists).
+            # Load the z-stack; projections will be calculated per-well below.
+            print(
+                "No projection folder found. "
+                "Will load z-stack data and calculate max-intensity projections..."
+            )
+            files_df = parse_MD_plate_folder_hcs_ai(
+                input_dir, only_2D=False, use_montage=False
+            )
+        else:
+            raise
+
+    if files_df is None:
+        raise ValueError(
+            f"No HCS.ai acquisition found in {input_dir}. "
+            "(No .mxprotocol file detected.)"
+        )
+
+    print(f"\nConverting plate '{files_df['name'].unique()[0]}'...")
+
+    nwells = len(files_df["well"].unique())
+    for w, well in enumerate(sorted(files_df["well"].unique())):
+        print(f"\nProcessing well {well} ({w + 1}/{nwells})")
+        well_files_df = files_df[files_df["well"] == well]
+
+        needs_projection = False
+        try:
+            fns_xr = create_well_filename_structure_MD_hcs_ai(
+                well_files_df, only_2D=only_2D
+            )
+        except ValueError as e:
+            if "No projections found." in str(e) and only_2D:
+                # Cases: data is 3D (z-stack or montage z-stack) but projections
+                # were requested → load the stack and compute them.
+                print(
+                    "No pre-calculated projections found. "
+                    "Calculating max-intensity projections from 3D data..."
+                )
+                fns_xr = create_well_filename_structure_MD_hcs_ai(
+                    well_files_df, only_2D=False
+                )
+                needs_projection = True
+            else:
+                raise
+
+        dataset = lazy_load_well_hcs_ai(fns_xr)
+
+        if needs_projection:
+            dataset = z_project_dataset(dataset, method="max")
+
+        example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
+        print(
+            f"dx: {example_channel_metadata['dx']}"
+            f" {example_channel_metadata['spatial_calibration_units']}\t"
+            f"dy: {example_channel_metadata['dy']}"
+            f" {example_channel_metadata['spatial_calibration_units']}\t"
+            f"dz: {example_channel_metadata['dz']}"
+            f" {example_channel_metadata['spatial_calibration_units']}\t"
+            f"dt: {example_channel_metadata['dt']}"
+            f" {example_channel_metadata['time_calibration_units']}"
+        )
+        print(f"Dimensions: {dict(dataset.images.sizes)}")
+
+        save_well_as_ome_tiffs(dataset, output_dir, split=dimensions_to_split)
 
     t_end = time.time()
     print(f"\nDone. Conversion took {t_end - t_start:.1f} seconds.\n")

@@ -47,6 +47,7 @@ dependencies = [
 [project.optional-dependencies]
 # add anything else you like to have in your dev environment here
 dev = [
+    "ipykernel",
     "mypy",
     #"pdbpp",  # https://github.com/pdbpp/pdbpp
     "pre-commit",

@@ -21,9 +21,9 @@ from zmb_md_converter.io.ht_ai.assembly import (
 from zmb_md_converter.io.ht_ai.parsing import parse_MD_plate_folder, parse_MD_tz_folder
 
 
-def test_create_well_filename_structure_MD(temp_dir):
+def test_create_well_filename_structure_MD(ht_ai_temp_dir):
     # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "direct_transfer" / "3420"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3420"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -36,7 +36,7 @@ def test_create_well_filename_structure_MD(temp_dir):
     assert "" not in fns_xr
 
     # 1t-3z-2w-2s-2c
-    root_dir = temp_dir / "direct_transfer" / "3433"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3433"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -49,7 +49,7 @@ def test_create_well_filename_structure_MD(temp_dir):
     assert "" not in fns_xr
 
     # 1t-3z-2w-2s-4c mixed z-sampliing
-    root_dir = temp_dir / "direct_transfer" / "3434"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3434"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -64,7 +64,7 @@ def test_create_well_filename_structure_MD(temp_dir):
     assert all(fns_xr[0, 0, 1, 1:] == ["", ""])
 
     # 1t-3z-2w-2s-4c mixed z-sampliing - 3D
-    root_dir = temp_dir / "direct_transfer" / "3434"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3434"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df, only_2D=True)
@@ -77,7 +77,7 @@ def test_create_well_filename_structure_MD(temp_dir):
     assert "" not in fns_xr
 
     # 6t-1z-2w-2s-4c mixed time-sampling
-    root_dir = temp_dir / "direct_transfer" / "3435"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3435"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -102,7 +102,7 @@ def test_create_well_filename_structure_MD(temp_dir):
         )
 
     # check for 'multiple files found' error:
-    root_dir = temp_dir / "direct_transfer" / "3434"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3434"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     with pytest.raises(RuntimeError):
@@ -110,7 +110,7 @@ def test_create_well_filename_structure_MD(temp_dir):
 
     # MD export
     # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420"
+    root_dir = ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -123,16 +123,16 @@ def test_create_well_filename_structure_MD(temp_dir):
     assert "" not in fns_xr
 
 
-def test_check_if_channel_contains_stack(temp_dir):
+def test_check_if_channel_contains_stack(ht_ai_temp_dir):
     # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "direct_transfer" / "3420"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3420"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
     assert not _check_if_channel_contains_stack(fns_xr, 0)
 
     # 1t-3z-2w-2s-4c mixed z-sampliing
-    root_dir = temp_dir / "direct_transfer" / "3434"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3434"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -141,7 +141,7 @@ def test_check_if_channel_contains_stack(temp_dir):
     assert not _check_if_channel_contains_stack(fns_xr, 2)
 
     # 1t-3z-2w-2s-4c mixed z-sampliing
-    root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434"
+    root_dir = ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -151,16 +151,16 @@ def test_check_if_channel_contains_stack(temp_dir):
     assert not _check_if_channel_contains_stack(fns_xr, 3)
 
 
-def test_check_if_channel_contains_timeseries(temp_dir):
+def test_check_if_channel_contains_timeseries(ht_ai_temp_dir):
     # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "direct_transfer" / "3420"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3420"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
     assert not _check_if_channel_contains_timeseries(fns_xr, 0)
 
     # 6t-1z-2w-2s-4c mixed time-sampling
-    root_dir = temp_dir / "direct_transfer" / "3435"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3435"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -170,7 +170,7 @@ def test_check_if_channel_contains_timeseries(temp_dir):
     assert not _check_if_channel_contains_timeseries(fns_xr, 3)
 
     # 6t-1z-2w-2s-4c mixed time-sampling
-    root_dir = temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3435"
+    root_dir = ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3435"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -180,16 +180,16 @@ def test_check_if_channel_contains_timeseries(temp_dir):
     assert not _check_if_channel_contains_timeseries(fns_xr, 3)
 
 
-def test_get_z_spacing(temp_dir):
+def test_get_z_spacing(ht_ai_temp_dir):
     # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "direct_transfer" / "3420"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3420"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
     assert _get_z_spacing(fns_xr) == 0
 
     # 1t-3z-2w-2s-4c mixed z-sampliing
-    root_dir = temp_dir / "direct_transfer" / "3434"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3434"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -199,16 +199,16 @@ def test_get_z_spacing(temp_dir):
         _get_z_spacing(fns_xr[:, :, 1:, :])
 
 
-def test_get_t_spacing(temp_dir):
+def test_get_t_spacing(ht_ai_temp_dir):
     # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "direct_transfer" / "3420"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3420"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
     assert _get_t_spacing(fns_xr) == 0
 
     # 6t-1z-2w-2s-4c mixed time-sampling
-    root_dir = temp_dir / "direct_transfer" / "3435"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3435"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -218,9 +218,9 @@ def test_get_t_spacing(temp_dir):
         _get_t_spacing(fns_xr[:, :, 1:, :])
 
 
-def test_build_channel_metadata(temp_dir):
+def test_build_channel_metadata(ht_ai_temp_dir):
     # 1t-3z-2w-2s-4c mixed z-sampliing
-    root_dir = temp_dir / "direct_transfer" / "3434"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3434"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -241,7 +241,7 @@ def test_build_channel_metadata(temp_dir):
     assert output["w1"]["objective"] == "40X Plan Apo Lambda"
 
     # 6t-1z-2w-2s-4c mixed time-sampling
-    root_dir = temp_dir / "direct_transfer" / "3435"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3435"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -262,9 +262,9 @@ def test_build_channel_metadata(temp_dir):
     assert output["w1"]["objective"] == "40X Plan Apo Lambda"
 
 
-def test_read_stage_positions(temp_dir):
+def test_read_stage_positions(ht_ai_temp_dir):
     # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "direct_transfer" / "3420"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3420"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -277,9 +277,9 @@ def test_read_stage_positions(temp_dir):
     npt.assert_array_equal(output, [[10025.4, 19885.0, 22985.0]])
 
 
-def test_lazy_load_stage_positions(temp_dir):
+def test_lazy_load_stage_positions(ht_ai_temp_dir):
     # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "direct_transfer" / "3420"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3420"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -290,9 +290,9 @@ def test_lazy_load_stage_positions(temp_dir):
     npt.assert_array_equal(positions_xr, [[[[[10025.4, 19885.0, 22985.0]]]]])
 
 
-def test_read_images(temp_dir):
+def test_read_images(ht_ai_temp_dir):
     # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "direct_transfer" / "3420"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3420"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -309,9 +309,9 @@ def test_read_images(temp_dir):
     assert all(np.unique(output) == 0)
 
 
-def test_lazy_load_images(temp_dir):
+def test_lazy_load_images(ht_ai_temp_dir):
     # 1t-1z-1w-1s-1c
-    root_dir = temp_dir / "direct_transfer" / "3420"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3420"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -321,7 +321,7 @@ def test_lazy_load_images(temp_dir):
     assert data_xr.dtype == "uint16"
 
     # 1t-3z-2w-2s-4c mixed z-sampliing
-    root_dir = temp_dir / "direct_transfer" / "3434"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3434"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -331,7 +331,7 @@ def test_lazy_load_images(temp_dir):
     assert data_xr.dtype == "uint16"
 
     # 6t-1z-2w-2s-4c mixed time-sampling
-    root_dir = temp_dir / "direct_transfer" / "3435"
+    root_dir = ht_ai_temp_dir / "direct_transfer" / "3435"
     files_df = parse_MD_plate_folder(root_dir)
     well_files_df = files_df[files_df.well == "B02"]
     fns_xr = create_well_filename_structure_MD(well_files_df)
@@ -340,7 +340,7 @@ def test_lazy_load_images(temp_dir):
     assert data_xr.compute().shape == (2, 6, 4, 1, 256, 256)
 
 
-def test_lazy_load_well(temp_dir):
+def test_lazy_load_well(ht_ai_temp_dir):
     expected_dataset_dims = [
         "field",
         "time",
@@ -352,16 +352,16 @@ def test_lazy_load_well(temp_dir):
     ]
 
     root_dir_list = [
-        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420",
-        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3433",
-        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434",
-        temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3435",
-        temp_dir / "MetaXpress_all-z_include-projection" / "timeseries",
-        temp_dir / "direct_transfer" / "3420",
-        temp_dir / "direct_transfer" / "3433",
-        temp_dir / "direct_transfer" / "3434",
-        temp_dir / "direct_transfer" / "3435",
-        temp_dir / "direct_transfer" / "timeseries",
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420",
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3433",
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434",
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3435",
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "timeseries",
+        ht_ai_temp_dir / "direct_transfer" / "3420",
+        ht_ai_temp_dir / "direct_transfer" / "3433",
+        ht_ai_temp_dir / "direct_transfer" / "3434",
+        ht_ai_temp_dir / "direct_transfer" / "3435",
+        ht_ai_temp_dir / "direct_transfer" / "timeseries",
     ]
 
     for root_dir in root_dir_list:
