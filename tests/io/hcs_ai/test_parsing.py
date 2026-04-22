@@ -110,16 +110,29 @@ def test_parse_MD_plate_folder_only_2D_with_montage_prefers_montage_data(data_di
     assert df["z"].notna().any()
 
 
-def test_parse_MD_plate_folder_use_montage_not_available_raises(data_dir_stack_only):
-    with pytest.raises(FileNotFoundError, match="experiment_montage"):
-        parse_MD_plate_folder(data_dir_stack_only, use_montage=True)
-
-
-def test_parse_MD_plate_folder_only_2D_with_montage_not_available_raises(
-    data_dir_stack_only,
+def test_parse_MD_plate_folder_use_montage_not_available_falls_back(
+    data_dir_stack_only, capsys
 ):
-    with pytest.raises(FileNotFoundError, match="experiment_montage"):
-        parse_MD_plate_folder(data_dir_stack_only, only_2D=True, use_montage=True)
+    """When montage folder is absent, falls back to regular z-stack."""
+    df = parse_MD_plate_folder(data_dir_stack_only, use_montage=True)
+
+    assert df is not None
+    assert df["z"].notna().any()
+    captured = capsys.readouterr()
+    assert "experiment_montage" in captured.out
+
+
+def test_parse_MD_plate_folder_only_2D_with_montage_not_available_falls_back(
+    data_dir_stack_only, capsys
+):
+    """When montage and experiment/ are absent, falls back to z-stack (projections computed downstream)."""
+    df = parse_MD_plate_folder(data_dir_stack_only, only_2D=True, use_montage=True)
+
+    assert df is not None
+    assert not df.empty
+    captured = capsys.readouterr()
+    assert "experiment_montage" in captured.out
+    assert "experiment_z_stack" in captured.out or "z-stack" in captured.out
 
 
 def test_parse_MD_plate_folder_stack_only(data_dir_stack_only):
