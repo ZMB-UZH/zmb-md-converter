@@ -85,8 +85,13 @@ def parse_jdce_metadata(jdce_path: Union[Path, str]) -> dict:
         for wl in protocol["Wavelengths"]
     ]
 
+    creation = data["ImageStack"]["Creation"]
+    created_suffix = f" {creation['Date']}, {creation['Time']}"
+    plate_id = data["ImageStack"]["PlateId"]
+    name = plate_id.removesuffix(created_suffix)
+
     return {
-        "name": data["ImageStack"]["PlateId"],
+        "name": name,
         "dx": calib["PixelWidth"],
         "dy": calib["PixelHeight"],
         "dz": dz,
@@ -172,13 +177,16 @@ def parse_MD_plate_folder(
 
     Folder selection logic:
 
-        - ``only_2D=True, use_montage=False``: only the ``experiment/``
-            subfolder is read. Its images are treated as projections (z=NaN).
+        - ``only_2D=True, use_montage=False``: prefer ``experiment/``
+            (treated as projections, z=NaN). If ``experiment/`` is absent but
+            ``experiment_z_stack/`` exists, the z-stack is loaded instead so
+            that projections can be computed downstream.
 
         - ``only_2D=True, use_montage=True``: prefer ``experiment_montage/``
             and keep its native dimensionality (often z-stack). This allows later
-            projection from stitched images. Raises ``FileNotFoundError`` if no
-            montage folder is present.
+            projection from stitched images. Falls back to ``experiment_z_stack/``
+            (or ``experiment/``) with a printed note when no montage folder is
+            present.
 
     - ``only_2D=False, use_montage=False`` (default): prefer
       ``experiment_z_stack/`` for 3D data; fall back to ``experiment/`` if
@@ -187,9 +195,10 @@ def parse_MD_plate_folder(
       projections are also included (z=NaN rows).
 
     - ``only_2D=False, use_montage=True``: use ``experiment_montage/``
-      instead of ``experiment_z_stack/`` for 3D data.  Raises
-      ``FileNotFoundError`` if no montage folder is found.  The
-      ``experiment/`` projections are still included when available.
+      instead of ``experiment_z_stack/`` for 3D data.  Falls back to
+      ``experiment_z_stack/`` with a printed note if no montage folder is
+      found.  The ``experiment/`` projections are still included when
+      available.
 
     Args:
         root_dir: Path to the acquisition root folder (the one containing
@@ -217,35 +226,47 @@ def parse_MD_plate_folder(
     dfs = []
 
     if only_2D:
-        if use_montage:
-            if montage_dir is None:
-                raise FileNotFoundError(
-                    f"No 'experiment_montage' folder found in {root_dir}. "
-                    "Set use_montage=False to use regular projections."
-                )
+        if use_montage and montage_dir is not None:
             # Keep montage data as stored (often z-stack) so projections can
             # be generated from stitched images later in the pipeline.
             df = _load_experiment_dir(montage_dir, is_projection=False)
+            if not df.empty:
+                dfs.append(df)
         else:
-            if proj_dir is None:
+            if use_montage and montage_dir is None:
+                print(
+                    f"Note: No 'experiment_montage' folder found in {root_dir}. "
+                    "Falling back to regular projections."
+                )
+            if proj_dir is not None:
+                df = _load_experiment_dir(proj_dir, is_projection=True)
+                if not df.empty:
+                    dfs.append(df)
+            elif z_stack_dir is not None:
+                print(
+                    f"Note: No 'experiment' folder found in {root_dir}. "
+                    "Falling back to z-stack; projections will be computed downstream."
+                )
+                df = _load_experiment_dir(z_stack_dir, is_projection=False)
+                if not df.empty:
+                    dfs.append(df)
+            else:
                 raise FileNotFoundError(
-                    f"No 'experiment' folder found in {root_dir}. "
+                    f"No 'experiment' or 'experiment_z_stack' folder found in {root_dir}. "
                     "Cannot load 2D data."
                 )
-            df = _load_experiment_dir(proj_dir, is_projection=True)
-
-        if not df.empty:
-            dfs.append(df)
 
     else:
         # Select which folder provides the 3D (or fallback) data
         if use_montage:
             if montage_dir is None:
-                raise FileNotFoundError(
-                    f"No 'experiment_montage' folder found in {root_dir}. "
-                    "Set use_montage=False to use the regular z-stack."
+                print(
+                    f"Note: No 'experiment_montage' folder found in {root_dir}. "
+                    "Falling back to the regular z-stack."
                 )
-            stack_source = montage_dir
+                stack_source = z_stack_dir
+            else:
+                stack_source = montage_dir
         elif z_stack_dir is not None:
             stack_source = z_stack_dir
         else:
