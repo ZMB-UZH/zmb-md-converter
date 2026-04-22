@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 import numpy.testing as npt
 import pytest
 
@@ -15,6 +14,7 @@ from zmb_md_converter.io.ht_ai.parsing import (
 def assert_unique_equal(actual, expected):
     """Compare unique values treating None and np.nan as equivalent."""
     import pandas as pd
+
     actual_set = {None if pd.isna(x) else x for x in actual}
     expected_set = {None if pd.isna(x) else x for x in expected}
     assert actual_set == expected_set, f"Expected {expected_set}, got {actual_set}"
@@ -115,9 +115,7 @@ def test_parse_MD_plate_folder_directTransfer(ht_ai_temp_dir):
     npt.assert_array_equal(df["channel"].unique(), ["w1", "w2", "w3", "w4"])
     npt.assert_array_equal(df["dir_name"].unique(), ["3434"])
     # all z-planes:
-    assert_unique_equal(
-        df.query("channel=='w1'")["z"].unique(), [None, "1", "2", "3"]
-    )
+    assert_unique_equal(df.query("channel=='w1'")["z"].unique(), [None, "1", "2", "3"])
     # only projection:
     assert_unique_equal(df.query("channel=='w2'")["z"].unique(), [None])
     # only 1 plane (0um offset):
@@ -156,7 +154,9 @@ def test_parse_MD_plate_folder_directTransfer(ht_ai_temp_dir):
 
 def test_parse_MD_plate_folder_MetaXpress(ht_ai_temp_dir):
     # 1t-1z-1w-1s-1c
-    root_dir = ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420"
+    root_dir = (
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420"
+    )
     df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 1
@@ -169,7 +169,9 @@ def test_parse_MD_plate_folder_MetaXpress(ht_ai_temp_dir):
     npt.assert_array_equal(df["dir_name"].unique(), ["9987_Plate_3420"])
 
     # 1t-3z-2w-2s-2c
-    root_dir = ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3433"
+    root_dir = (
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3433"
+    )
     df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 32
@@ -182,7 +184,9 @@ def test_parse_MD_plate_folder_MetaXpress(ht_ai_temp_dir):
     npt.assert_array_equal(df["dir_name"].unique(), ["9987_Plate_3433"])
 
     # 1t-3z-2w-2s-4c mixed z-sampliing
-    root_dir = ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434"
+    root_dir = (
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3434"
+    )
     df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 64
@@ -194,24 +198,18 @@ def test_parse_MD_plate_folder_MetaXpress(ht_ai_temp_dir):
     npt.assert_array_equal(df["channel"].unique(), ["w1", "w2", "w3", "w4"])
     npt.assert_array_equal(df["dir_name"].unique(), ["9987_Plate_3434"])
     # all z-planes:
-    assert_unique_equal(
-        df.query("channel=='w1'")["z"].unique(), [None, "1", "2", "3"]
-    )
+    assert_unique_equal(df.query("channel=='w1'")["z"].unique(), [None, "1", "2", "3"])
     # only projection:
-    assert_unique_equal(
-        df.query("channel=='w2'")["z"].unique(), [None, "1", "2", "3"]
-    )
+    assert_unique_equal(df.query("channel=='w2'")["z"].unique(), [None, "1", "2", "3"])
     # only 1 plane (0um offset):
-    assert_unique_equal(
-        df.query("channel=='w3'")["z"].unique(), [None, "1", "2", "3"]
-    )
+    assert_unique_equal(df.query("channel=='w3'")["z"].unique(), [None, "1", "2", "3"])
     # only 1 plane (10um offset):
-    assert_unique_equal(
-        df.query("channel=='w4'")["z"].unique(), [None, "1", "2", "3"]
-    )
+    assert_unique_equal(df.query("channel=='w4'")["z"].unique(), [None, "1", "2", "3"])
 
     # 6t-1z-2w-2s-4c mixed time-sampling
-    root_dir = ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3435"
+    root_dir = (
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3435"
+    )
     df = parse_MD_plate_folder(root_dir)
     df.sort_values(by=["path"], inplace=True)
     assert len(df) == 96
@@ -242,7 +240,9 @@ def test_parse_MD_plate_folder_MetaXpress(ht_ai_temp_dir):
 
 def test_parse_MD_tz_folder(ht_ai_temp_dir):
     # 1t-1z-1w-1s-1c
-    root_dir = ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420"
+    root_dir = (
+        ht_ai_temp_dir / "MetaXpress_all-z_include-projection" / "9987_Plate_3420"
+    )
     df = parse_MD_tz_folder(root_dir)
     assert df is None
 

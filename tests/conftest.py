@@ -18,7 +18,14 @@ def ht_ai_temp_dir():
     ]:
         if not (base / filename).exists():
             subprocess.run(
-                ["zenodo_get", "10.5281/zenodo.12724927", "-o", str(base), "-g", filename],
+                [
+                    "zenodo_get",
+                    "10.5281/zenodo.12724927",
+                    "-o",
+                    str(base),
+                    "-g",
+                    filename,
+                ],
                 check=True,
             )
         extracted = base / filename.removesuffix(".zip")

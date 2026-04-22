@@ -153,7 +153,10 @@ class GUI:  # noqa: D101
         ).grid(row=0, column=0, columnspan=3, padx=5, pady=(5, 0), sticky=tk.W)
 
         self._browse_row(
-            parent, 1, "Input Directory:", self.ht_input_dir,
+            parent,
+            1,
+            "Input Directory:",
+            self.ht_input_dir,
             lambda: self.ht_input_dir.set(filedialog.askdirectory()),
             "Top directory of the MD data to be converted.\n"
             "The first subdirectories should be 'TimePoint_n'.\n"
@@ -161,7 +164,10 @@ class GUI:  # noqa: D101
             "Input Directory should contain multiple MD-plate folders.",
         )
         self._browse_row(
-            parent, 2, "Output Directory:", self.ht_output_dir,
+            parent,
+            2,
+            "Output Directory:",
+            self.ht_output_dir,
             lambda: self.ht_output_dir.set(filedialog.askdirectory()),
             "Directory where the converted files will be stored.\n"
             "Needs to be outside of Input Directory.",
@@ -183,14 +189,19 @@ class GUI:  # noqa: D101
         ).grid(row=0, column=0, sticky=tk.W)
 
         self._checkbutton(
-            ome_frame, 1, "Projections only", self.ht_only_2D,
+            ome_frame,
+            1,
+            "Projections only",
+            self.ht_only_2D,
             "If activated, only projections and single planes will be converted.",
         )
 
         next_row = self._dimensions_section(ome_frame, 2, self.ht_dims)
 
         self._checkbutton(
-            ome_frame, next_row, "Fill Mixed Acquisition",
+            ome_frame,
+            next_row,
+            "Fill Mixed Acquisition",
             self.ht_fill_mixed_acquisition,
             "Handle how mixed acquisitions are treated.\n"
             "Mixed acquisitions are acquisitions where for some channels not all planes"
@@ -200,9 +211,9 @@ class GUI:  # noqa: D101
             "(If the data was exported from MetaXpress, this is already done.)",
         )
 
-        tk.Button(
-            ome_frame, text="Convert", command=self._convert_ht_ai_ome_tiff
-        ).grid(row=next_row + 1, column=0, padx=5, pady=5)
+        tk.Button(ome_frame, text="Convert", command=self._convert_ht_ai_ome_tiff).grid(
+            row=next_row + 1, column=0, padx=5, pady=5
+        )
 
         # ImageJ Hyperstack tab
         tk.Label(
@@ -224,14 +235,20 @@ class GUI:  # noqa: D101
 
     def _create_hcs_ai_widgets(self, parent):
         self._browse_row(
-            parent, 0, "Input Directory:", self.hcs_input_dir,
+            parent,
+            0,
+            "Input Directory:",
+            self.hcs_input_dir,
             lambda: self.hcs_input_dir.set(filedialog.askdirectory()),
             "Acquisition folder for the HCS.ai experiment.\n"
             "This is the folder that contains the .mxprotocol file\n"
             "and the experiment/ subfolders.",
         )
         self._browse_row(
-            parent, 1, "Output Directory:", self.hcs_output_dir,
+            parent,
+            1,
+            "Output Directory:",
+            self.hcs_output_dir,
             lambda: self.hcs_output_dir.set(filedialog.askdirectory()),
             "Directory where the converted files will be stored.\n"
             "Needs to be outside of Input Directory.",
@@ -244,21 +261,27 @@ class GUI:  # noqa: D101
         ).grid(row=2, column=0, sticky=tk.W, padx=5, pady=(5, 0))
 
         self._checkbutton(
-            parent, 3, "Projections only", self.hcs_only_2D,
+            parent,
+            3,
+            "Projections only",
+            self.hcs_only_2D,
             "If activated, only 2D projections are written.\n"
             "Uses pre-calculated MIPs when available, otherwise projects the z-stack.",
         )
         self._checkbutton(
-            parent, 4, "Use montage (stitched) images, if available", self.hcs_use_montage,
+            parent,
+            4,
+            "Use montage (stitched) images, if available",
+            self.hcs_use_montage,
             "Use the stitched montage images instead of individual fields, if available.\n"
             "If no montage data is found, falls back to individual fields.",
         )
 
         next_row = self._dimensions_section(parent, 5, self.hcs_dims)
 
-        tk.Button(
-            parent, text="Convert", command=self._convert_hcs_ai
-        ).grid(row=next_row, column=0, padx=5, pady=5)
+        tk.Button(parent, text="Convert", command=self._convert_hcs_ai).grid(
+            row=next_row, column=0, padx=5, pady=5
+        )
 
     # ------------------------------------------------------------------
     # Actions
@@ -358,5 +381,3 @@ class GUI:  # noqa: D101
 if __name__ == "__main__":
     gui = GUI()
     gui.run()
-
-

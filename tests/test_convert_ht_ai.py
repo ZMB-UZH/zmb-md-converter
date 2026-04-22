@@ -1,10 +1,10 @@
 """Tests for convert_ht_ai_to_tiffs.
 
 Datasets used (downloaded from Zenodo via the ``temp_dir`` fixture):
-  direct_transfer/3420  – 1w 1s 1t 1ch, no z-stack
-  direct_transfer/3433  – 2w 2s 1t 2ch 3z  (clean, uniform acquisition)
-  direct_transfer/3434  – 2w 2s 1t 4ch, mixed z-sampling (w2=proj-only, w3/w4=1-plane)
-  direct_transfer/3435  – 2w 2s 6t 4ch, mixed time-sampling (2D)
+  direct_transfer/3420  - 1w 1s 1t 1ch, no z-stack
+  direct_transfer/3433  - 2w 2s 1t 2ch 3z  (clean, uniform acquisition)
+  direct_transfer/3434  - 2w 2s 1t 4ch, mixed z-sampling (w2=proj-only, w3/w4=1-plane)
+  direct_transfer/3435  - 2w 2s 6t 4ch, mixed time-sampling (2D)
 """
 
 from pathlib import Path
@@ -48,7 +48,7 @@ def test_convert_ht_ai_3d(ht_ai_temp_dir, tmp_path):
         fill_mixed_acquisition=False,
     )
     results = _read_output_tiffs(tmp_path)
-    # 2 wells × 2 fields = 4 output files
+    # 2 wells x 2 fields = 4 output files
     assert len(results) == 4
     _path, axes, shape = results[0]
     assert _dim_size(axes, shape, "Z") == 3  # 3 z-planes
@@ -109,7 +109,7 @@ def test_convert_ht_ai_fill_mixed_acquisition(ht_ai_temp_dir, tmp_path):
         fill_mixed_acquisition=True,
     )
     results = _read_output_tiffs(tmp_path)
-    # 2 wells × 2 fields = 4 output files
+    # 2 wells x 2 fields = 4 output files
     assert len(results) == 4
     _path, axes, shape = results[0]
     # fill extends all 4 channels (including w2 which is projection-only) to 3 planes
@@ -133,7 +133,7 @@ def test_convert_ht_ai_timeseries(ht_ai_temp_dir, tmp_path):
         fill_mixed_acquisition=True,
     )
     results = _read_output_tiffs(tmp_path)
-    # 2 wells × 2 fields = 4 output files
+    # 2 wells x 2 fields = 4 output files
     assert len(results) == 4
     _path, axes, shape = results[0]
     assert _dim_size(axes, shape, "T") == 6  # 6 timepoints after fill

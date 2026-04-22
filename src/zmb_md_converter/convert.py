@@ -10,6 +10,15 @@ import tifffile
 import xarray as xr
 from dask.diagnostics import ProgressBar
 
+from zmb_md_converter.io.hcs_ai.assembly import (
+    create_well_filename_structure_MD as create_well_filename_structure_MD_hcs_ai,
+)
+from zmb_md_converter.io.hcs_ai.assembly import (
+    lazy_load_well as lazy_load_well_hcs_ai,
+)
+from zmb_md_converter.io.hcs_ai.parsing import (
+    parse_MD_plate_folder as parse_MD_plate_folder_hcs_ai,
+)
 from zmb_md_converter.io.ht_ai.assembly import (
     create_well_filename_structure_MD,
     lazy_load_well,
@@ -18,13 +27,6 @@ from zmb_md_converter.io.ht_ai.parsing import (
     _fill_mixed_acquisitions,
     parse_MD_plate_folder,
     parse_MD_tz_folder,
-)
-from zmb_md_converter.io.hcs_ai.assembly import (
-    create_well_filename_structure_MD as create_well_filename_structure_MD_hcs_ai,
-    lazy_load_well as lazy_load_well_hcs_ai,
-)
-from zmb_md_converter.io.hcs_ai.parsing import (
-    parse_MD_plate_folder as parse_MD_plate_folder_hcs_ai,
 )
 
 

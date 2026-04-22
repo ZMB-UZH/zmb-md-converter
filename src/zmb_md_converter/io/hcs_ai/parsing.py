@@ -148,9 +148,15 @@ def _parse_experiment_dir(
                 "spatial_calibration_units": jdce_meta["spatial_calibration_units"],
                 "time_calibration_units": jdce_meta["time_calibration_units"],
                 "channel_name": channel_name_map.get(int(rec["Wavelength"]), ""),
-                "pos_x": float(rec["PositionXUm"]) if "PositionXUm" in rec and pd.notna(rec["PositionXUm"]) else 0.0,
-                "pos_y": float(rec["PositionYUm"]) if "PositionYUm" in rec and pd.notna(rec["PositionYUm"]) else 0.0,
-                "pos_z": float(rec["PositionZUm"]) if "PositionZUm" in rec and pd.notna(rec["PositionZUm"]) else 0.0,
+                "pos_x": float(rec["PositionXUm"])
+                if "PositionXUm" in rec and pd.notna(rec["PositionXUm"])
+                else 0.0,
+                "pos_y": float(rec["PositionYUm"])
+                if "PositionYUm" in rec and pd.notna(rec["PositionYUm"])
+                else 0.0,
+                "pos_z": float(rec["PositionZUm"])
+                if "PositionZUm" in rec and pd.notna(rec["PositionZUm"])
+                else 0.0,
             }
         )
 
@@ -293,4 +299,3 @@ def parse_MD_plate_folder(
         return None
 
     return pd.concat(dfs, ignore_index=True)
-
