@@ -1,42 +1,48 @@
 import subprocess
 import zipfile
+from pathlib import Path
 
 import pytest
 
+_TESTS_DATA_DIR = Path(__file__).parent / "data"
+
 
 @pytest.fixture(scope="session")
-def temp_dir(tmp_path_factory):
-    # Create a temporary directory that lasts for the session
-    base_temp = tmp_path_factory.mktemp("data")
+def ht_ai_temp_dir():
+    base = _TESTS_DATA_DIR / "ht_ai"
+    base.mkdir(parents=True, exist_ok=True)
 
-    # Download files from Zenodo into the temporary directory
-    subprocess.run(
-        [
-            "zenodo_get",
-            "10.5281/zenodo.12724927",
-            "-o",
-            str(base_temp),
-            "-g",
-            "direct_transfer.zip",
-        ],
-        check=True,
-    )
-    subprocess.run(
-        [
-            "zenodo_get",
-            "10.5281/zenodo.12724927",
-            "-o",
-            str(base_temp),
-            "-g",
-            "MetaXpress_all-z_include-projection.zip",
-        ],
-        check=True,
-    )
+    for filename in [
+        "direct_transfer.zip",
+        "MetaXpress_all-z_include-projection.zip",
+    ]:
+        if not (base / filename).exists():
+            subprocess.run(
+                ["zenodo_get", "10.5281/zenodo.12724927", "-o", str(base), "-g", filename],
+                check=True,
+            )
+        extracted = base / filename.removesuffix(".zip")
+        if not extracted.exists():
+            with zipfile.ZipFile(base / filename, "r") as zip_ref:
+                zip_ref.extractall(base)
 
-    # Unzip the downloaded files
-    for zip_file in ["direct_transfer.zip", "MetaXpress_all-z_include-projection.zip"]:
-        zip_path = base_temp / zip_file
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(base_temp)
+    return base
 
-    return base_temp
+
+@pytest.fixture(scope="session")
+def hcs_ai_temp_dir():
+    base = _TESTS_DATA_DIR / "hcs_ai"
+    base.mkdir(parents=True, exist_ok=True)
+
+    zip_name = "hcs-ai_minimal.zip"
+    if not (base / zip_name).exists():
+        subprocess.run(
+            ["zenodo_get", "10.5281/zenodo.19694932", "-o", str(base), "-g", zip_name],
+            check=True,
+        )
+    extracted = base / "hcs-ai_minimal"
+    if not extracted.exists():
+        with zipfile.ZipFile(base / zip_name, "r") as zip_ref:
+            zip_ref.extractall(base)
+
+    return extracted
