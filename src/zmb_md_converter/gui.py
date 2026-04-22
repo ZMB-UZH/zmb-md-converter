@@ -295,13 +295,15 @@ class GUI:  # noqa: D101
         if not output_str:
             messagebox.showerror("Missing Output", "Please select an Output Directory.")
             return None, None
-        if input_str in output_str:
+        input_path = Path(input_str).resolve()
+        output_path = Path(output_str).resolve()
+        if output_path == input_path or output_path.is_relative_to(input_path):
             messagebox.showerror(
                 "Invalid Output Directory",
                 "Output directory must be outside of the input directory.",
             )
             return None, None
-        return Path(input_str), Path(output_str)
+        return input_path, output_path
 
     def _convert_ht_ai_ome_tiff(self):
         input_dir, output_dir = self._validate_dirs(
