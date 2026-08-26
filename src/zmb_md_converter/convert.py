@@ -296,7 +296,7 @@ def save_well_as_imagej_tiffs_legacy(
         fn_output = (
             f"{_plate_output_name(dataset_sub)}"
             f"_w_{_well_output_name(dataset_sub)}"
-            f"{_field_output_name(dataset_sub, legacy_mode=True) if nfields > 1 else ''}"
+            f"{_field_output_name(dataset_sub, legacy_mode=True) if nfields > 1 else ''}"  # noqa: E501
             ".tif"
         )
         # drop 'field' dimension (without loosing the coordinate)

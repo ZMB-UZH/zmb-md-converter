@@ -9,6 +9,7 @@ from zmb_md_converter.io.hcs_ai.parsing import (
     parse_MD_plate_folder,
 )
 
+
 def test_parse_jdce_metadata_strips_timestamp_from_name(tmp_path):
     """The name is derived from PlateId, e.g. "my_plate 2026-08-25, 14:01:21";
     the trailing timestamp must be stripped so no colon ends up in it."""
@@ -16,7 +17,11 @@ def test_parse_jdce_metadata_strips_timestamp_from_name(tmp_path):
         "ImageStack": {
             "PlateId": "my_plate 2026-08-25, 14:01:21",
             "AutoLeadAcquisitionProtocol": {
-                "ObjectiveCalibration": {"Unit": "µm", "PixelWidth": 1, "PixelHeight": 1},
+                "ObjectiveCalibration": {
+                    "Unit": "µm",
+                    "PixelWidth": 1,
+                    "PixelHeight": 1,
+                },
                 "Wavelengths": [{"Index": 0, "EmissionFilter": {"Name": "DAPI"}}],
                 "PlateMap": {
                     "ZDimensionParameters": {"Step": 4.0},
