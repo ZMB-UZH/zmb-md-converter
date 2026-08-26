@@ -1,11 +1,34 @@
 """Tests for MD ImageXpress HCS.ai parsing functions."""
 
+import json
+
 import pytest
 
 from zmb_md_converter.io.hcs_ai.parsing import (
     parse_jdce_metadata,
     parse_MD_plate_folder,
 )
+
+def test_parse_jdce_metadata_strips_timestamp_from_name(tmp_path):
+    """The name is derived from PlateId, e.g. "my_plate 2026-08-25, 14:01:21";
+    the trailing timestamp must be stripped so no colon ends up in it."""
+    jdce = {
+        "ImageStack": {
+            "PlateId": "my_plate 2026-08-25, 14:01:21",
+            "AutoLeadAcquisitionProtocol": {
+                "ObjectiveCalibration": {"Unit": "µm", "PixelWidth": 1, "PixelHeight": 1},
+                "Wavelengths": [{"Index": 0, "EmissionFilter": {"Name": "DAPI"}}],
+                "PlateMap": {
+                    "ZDimensionParameters": {"Step": 4.0},
+                    "TimeSchedule": {"Times": [{"Ms": 0}]},
+                },
+            },
+        }
+    }
+    jdce_path = tmp_path / "test.jdce"
+    jdce_path.write_text(json.dumps(jdce), encoding="utf-8")
+
+    assert parse_jdce_metadata(jdce_path)["name"] == "my_plate"
 
 
 @pytest.fixture(scope="module")

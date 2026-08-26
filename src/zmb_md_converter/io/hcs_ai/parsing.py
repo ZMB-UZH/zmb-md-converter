@@ -37,10 +37,13 @@ ImageFileName, PositionXUm, PositionYUm, PositionZUm, etc.
 """
 
 import json
+import re
 from pathlib import Path
 from typing import Optional, Union
 
 import pandas as pd
+
+_PLATE_ID_TIMESTAMP_SUFFIX = re.compile(r" \d{4}-\d{2}-\d{2}, \d{2}:\d{2}:\d{2}$")
 
 _STANDARD_ROW_NAMES = "ABCDEFGHIJKLMNOP"
 
@@ -85,10 +88,9 @@ def parse_jdce_metadata(jdce_path: Union[Path, str]) -> dict:
         for wl in protocol["Wavelengths"]
     ]
 
-    creation = data["ImageStack"]["Creation"]
-    created_suffix = f" {creation['Date']}, {creation['Time']}"
     plate_id = data["ImageStack"]["PlateId"]
-    name = plate_id.removesuffix(created_suffix)
+    # Remove the timestamp suffix from the plate ID
+    name = _PLATE_ID_TIMESTAMP_SUFFIX.sub("", plate_id)
 
     return {
         "name": name,

@@ -1,3 +1,4 @@
+import re
 import time
 from collections.abc import Iterable
 from itertools import product
@@ -29,10 +30,23 @@ from zmb_md_converter.io.ht_ai.parsing import (
     parse_MD_tz_folder,
 )
 
+_INVALID_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9_-]+")
+
+
+def _sanitize_output_name(name: str) -> str:
+    r"""
+    Sanitize a string for use as part of an output filename.
+
+    Any run of whitespace, punctuation, or other characters that are not
+    safe to use in filenames (e.g. on Windows: ``<>:"/\\|?*``) is replaced
+    by a single underscore, and leading/trailing underscores are stripped.
+    """
+    return _INVALID_FILENAME_CHARS.sub("_", name).strip("_")
+
 
 def _well_output_name(dataset: xr.Dataset) -> str:
     example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
-    return str(example_channel_metadata["well_name"])
+    return _sanitize_output_name(str(example_channel_metadata["well_name"]))
 
 
 def _field_output_name(dataset: xr.Dataset, legacy_mode: bool = False) -> str:
@@ -72,7 +86,7 @@ def _plane_output_name(dataset: xr.Dataset) -> str:
 
 def _plate_output_name(dataset: xr.Dataset) -> str:
     example_channel_metadata = next(iter(dataset.images.attrs.items()))[1]
-    return str(example_channel_metadata["plate_name"])
+    return _sanitize_output_name(str(example_channel_metadata["plate_name"]))
 
 
 def _get_tczyx_ome_metadata(dataset: xr.Dataset) -> dict:
